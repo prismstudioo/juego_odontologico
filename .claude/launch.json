@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mouth-of-chaos",
+      "runtimeExecutable": "C:\\Users\\15-dy1013la\\nodejs-portable\\node.exe",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
+    }
+  ]
+}

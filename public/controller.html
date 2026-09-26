@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12040a">
+  <title>MOUTH OF CHAOS · Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="mouth-bg"></div><div class="pixel-grid"></div>
+
+  <section id="join" class="page">
+    <h1 class="title" style="font-size:clamp(20px,7vw,40px)">MOUTH OF <span>CHAOS</span></h1>
+    <div class="phone-card">
+      ESCRIBE TU NOMBRE
+      <input id="nameInput" maxlength="14" autocomplete="off" placeholder="TU NOMBRE">
+      <button id="joinBtn" class="btn btn-big">ENTRAR</button>
+      <div id="joinErr" class="err"></div>
+    </div>
+  </section>
+
+  <section id="team" class="page hidden">
+    <div class="phone-card">
+      ELIGE TU EQUIPO
+      <div class="team-pick">
+        <button id="pickDoc" class="btn btn-doc"><img src="assets/doc_alan_armed.png" alt="">ODONTÓLOGO<small id="docSlots"></small></button>
+        <button id="pickBac" class="btn btn-bac"><img src="assets/bac_karina.png" alt="">BACTERIA<small id="bacSlots"></small></button>
+      </div>
+      <div id="teamErr" class="err"></div>
+    </div>
+  </section>
+
+  <section id="wait" class="page hidden">
+    <div class="phone-card">
+      <div id="meCard"></div>
+      <div id="waitList" class="lobby-list"></div>
+      <button id="startBtn" class="btn btn-big hidden">[ INICIAR PARTIDA ]</button>
+      <div id="waitMsg" class="blink">Esperando jugadores…</div>
+      <button id="changeTeamBtn" class="btn">CAMBIAR EQUIPO</button>
+    </div>
+  </section>
+
+  <canvas id="phoneCanvas" class="hidden"></canvas>
+  <div id="phoneOverlay" class="overlay phone-ov hidden"></div>
+  <section id="play" class="hidden"></section>
+  <button id="camBtn" class="cam-btn hidden">📺 VER MI CÁMARA</button>
+
+  <section id="results" class="page hidden">
+    <div class="phone-card">
+      <div id="resText"></div>
+      <button id="againBtn" class="btn btn-big">JUGAR OTRA VEZ</button>
+    </div>
+  </section>
+
+  <div class="rotate-hint"><div class="big">📱</div>GIRA TU CELULAR<br>(HORIZONTAL)</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/map.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/render3d.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/gameview.js"></script>
+  <script src="js/netview.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/controller.js"></script>
+</body>
+</html>

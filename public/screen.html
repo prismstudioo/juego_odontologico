@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOUTH OF CHAOS · Pantalla</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="mouth-bg"></div><div class="pixel-grid"></div>
+
+  <!-- 1. ¿Cuántos jugadores? -->
+  <section id="modeSelect" class="page">
+    <h1 class="title">MOUTH OF <span>CHAOS</span></h1>
+    <p class="subtitle blink">¿CUÁNTOS JUGADORES?</p>
+    <div class="mode-cards">
+      <button class="mode-card" data-mode="2">
+        <h2>1 VS 1</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""> VS <img src="assets/bac_karina.png" alt=""></div>
+        <p>1 🦷 ODONTÓLOGO vs 1 🦠 BACTERIA<br>Pantalla dividida en 2</p>
+      </button>
+      <button class="mode-card" data-mode="4">
+        <h2>2 VS 2</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>2 🦷 ODONTÓLOGOS vs 2 🦠 BACTERIAS<br>Pantalla dividida en 4</p>
+      </button>
+      <button class="mode-card mode-small" data-mode="10">
+        <h2>5 VS 5</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""><img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>5 🦷 vs 5 🦠 · 10 jugadores<br>Cámara aérea grande para el público</p>
+      </button>
+      <button class="mode-card mode-small" data-mode="14">
+        <h2>7 VS 7</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""><img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>7 🦷 vs 7 🦠 · 14 jugadores<br>Cámara aérea grande para el público</p>
+      </button>
+    </div>
+    <p id="noServer" class="err hidden">⚠️ No hay conexión con el servidor. Ejecuta <b>npm start</b> o abre el link de Render.<br>Para jugar sin servidor usa el MODO PRUEBA.</p>
+  </section>
+
+  <!-- 2. Lobby -->
+  <section id="lobby" class="page lobby-page hidden">
+    <div class="lobby-left">
+    <h1 class="title" style="font-size:clamp(20px,3vw,44px)">MOUTH OF <span>CHAOS</span></h1>
+    <div class="qr-box"><img id="qr" class="qr hidden" alt="Código QR">📷 ESCANEA CON TU CELULAR</div>
+    <div class="lobby-url"><small>📱 O ESCRIBE ESTA DIRECCIÓN:</small><span id="joinUrl"></span></div>
+    <div class="lobby-actions">
+      <button id="startBtn" class="btn btn-big" disabled>[ INICIAR PARTIDA ]</button>
+      <button id="botsBtn" class="btn">🤖 RELLENAR CON BOTS</button>
+      <button id="modeBtn" class="btn">CAMBIAR MODO</button>
+    </div>
+    <p id="lobbyMsg" class="subtitle"></p>
+    </div>
+    <div class="teams">
+      <div class="team-col doc"><h3 class="t-doc">🦷 ODONTÓLOGOS</h3><div id="slotsDoc"></div></div>
+      <div class="team-col bac"><h3 class="t-bac">🦠 BACTERIAS</h3><div id="slotsBac"></div></div>
+    </div>
+  </section>
+
+  <!-- 3. Juego -->
+  <section id="game" class="hidden">
+    <canvas id="gameCanvas"></canvas>
+    <div id="overlay" class="overlay"></div>
+  </section>
+
+  <button id="muteBtn" class="corner-btn" title="Sonido">🔊</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/map.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/render3d.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/gameview.js"></script>
+  <script src="js/netview.js"></script>
+  <script src="js/screen.js"></script>
+</body>
+</html>

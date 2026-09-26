@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>MOUTH OF CHAOS · Solitario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="mouth-bg"></div><div class="pixel-grid"></div>
+
+  <section id="setup" class="page">
+    <h1 class="title" style="font-size:clamp(20px,5vw,56px)">MOUTH OF <span>CHAOS</span></h1>
+    <p class="subtitle">🤖 SOLITARIO · TÚ CONTRA LOS BOTS</p>
+    <div class="mode-cards">
+      <button class="mode-card" data-mode="2">
+        <h2>1 VS 1</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""> VS <img src="assets/bac_karina.png" alt=""></div>
+        <p>Tú + 1 bot</p>
+      </button>
+      <button class="mode-card" data-mode="4">
+        <h2>2 VS 2</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>Tú + 3 bots</p>
+      </button>
+      <button class="mode-card mode-small" data-mode="10">
+        <h2>5 VS 5</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""><img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>Tú + 9 bots</p>
+      </button>
+      <button class="mode-card mode-small" data-mode="14">
+        <h2>7 VS 7</h2>
+        <div class="vs"><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""><img src="assets/doc_alan_armed.png" alt=""><img src="assets/doc_karina_armed.png" alt=""> VS <img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""><img src="assets/bac_alan.png" alt=""><img src="assets/bac_karina.png" alt=""></div>
+        <p>Tú + 13 bots</p>
+      </button>
+    </div>
+    <div class="phone-card" id="teamCard">
+      <input id="nameInput" maxlength="14" placeholder="TU NOMBRE" value="JUGADOR">
+      <div class="team-pick">
+        <button class="btn btn-doc" data-team="doc"><img src="assets/doc_alan_armed.png" alt="">ODONTÓLOGO</button>
+        <button class="btn btn-bac" data-team="bac"><img src="assets/bac_alan.png" alt="">BACTERIA</button>
+      </div>
+      <div id="setupMsg" class="subtitle">Elige nº de jugadores y equipo</div>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <canvas id="gameCanvas"></canvas>
+    <div id="overlay" class="overlay"></div>
+    <div id="touch" class="test-touch hidden"></div>
+    <div id="keysHelp" class="keys-help">
+      WASD mover · MOUSE / ← → girar<br>
+      CLIC / J disparar · E limpiar/ensuciar (mantener)<br>
+      Q cambiar arma · ESPACIO saltar · F lanzar bomba · R escudo (odontólogo)<br>
+      V ver todas las cámaras · M sonido · ESC soltar mouse
+    </div>
+  </section>
+
+  <button id="muteBtn" class="corner-btn" title="Sonido">🔊</button>
+
+  <script src="shared/config.js"></script>
+  <script src="shared/map.js"></script>
+  <script src="shared/game.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/render3d.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/gameview.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/test.js"></script>
+</body>
+</html>
