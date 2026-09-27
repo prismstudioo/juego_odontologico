@@ -178,6 +178,11 @@
     start() {
       if (!this.canStart()) return false;
       this.resetMatch();
+      // Equipos desiguales ("jugar así"): el equipo con menos jugadores recibe menos daño,
+      // limpia/ensucia más rápido y sus disparos a la muela valen más, en proporción.
+      const n = { doc: this.teamMembers('doc').length, bac: this.teamMembers('bac').length };
+      const hk = (mine, other) => Math.min(4, Math.max(1, Math.pow(other / mine, C.HANDICAP_POWER)));
+      this.handicap = { doc: hk(n.doc, n.bac), bac: hk(n.bac, n.doc) };
       const idx = { doc: 0, bac: 0 };
       this.players.forEach((p) => {
         if (!p.team) return;
@@ -301,6 +306,8 @@
       this.lobbyVersion++;
     }
 
+    hc(team) { return (this.handicap && this.handicap[team]) || 1; }
+
     // ───────────── Desempate: carrera para romper la muela ─────────────
     startRace() {
       const R = C.RACE;
@@ -338,20 +345,21 @@
         const d = race.doc, b = race.bac;
         const winner = d > b ? 'doc' : b > d ? 'bac' : this.teamProgress.doc >= this.teamProgress.bac ? 'doc' : 'bac';
         this.timeLeft = 0;
-        this.endMatch(winner, { doc: d, bac: b, timeout: true });
+        this.endMatch(winner, { doc: Math.floor(d), bac: Math.floor(b), timeout: true });
       }
     }
 
     // Un disparo a la muela: suma 1 a tu equipo y le resta 1 al rival
     raceHit(pr) {
       const race = this.race, team = pr.team, other = team === 'doc' ? 'bac' : 'doc';
-      race[team] = Math.min(C.RACE.hits, race[team] + 1);
-      race[other] = Math.max(0, race[other] - 1);
+      const v = this.hc(team);
+      race[team] = Math.min(C.RACE.hits, race[team] + v);
+      race[other] = Math.max(0, race[other] - v);
       const shooter = this.players.get(pr.owner);
       if (shooter) shooter.stats.race++;
       if (race[team] >= C.RACE.hits) {
         this.emit({ type: 'raceBreak', team, id: pr.owner, x: C.RACE.x, y: C.RACE.y });
-        this.endMatch(team, { doc: race.doc, bac: race.bac });
+        this.endMatch(team, { doc: Math.floor(race.doc), bac: Math.floor(race.bac) });
       }
     }
 
@@ -594,7 +602,7 @@
         }
         return;
       }
-      const step = dt / C.TOOTH_ACTION_TIME * (p.boostT > 0 ? C.BOOST.actionSpeed : 1);
+      const step = dt / C.TOOTH_ACTION_TIME * (p.boostT > 0 ? C.BOOST.actionSpeed : 1) * this.hc(p.team);
       p.action.t += step;
       this.teamProgress[p.team] += step;
       if (p.action.t >= 1) {
@@ -736,7 +744,7 @@
 
     damage(e, amount, by, weapon) {
       if (!e.alive || e.superT > 0 || e.spawnT > 0) return;
-      e.hp -= amount;
+      e.hp -= amount / this.hc(e.team);
       e.flashT = 0.25;
       this.emit({ type: 'hit', id: e.id, by: by && by.id, weapon });
       if (e.hp <= 0) this.kill(e, by, weapon);
@@ -770,7 +778,7 @@
         this.players.forEach((p) => {
           if (p.team !== 'doc' || !p.alive || p.z > 0.1 || p.superT > 0 || p.spawnT > 0) return;
           if (Math.hypot(p.x - z.x, p.y - z.y) < z.r) {
-            p.hp -= W.puddleDps * dt;
+            p.hp -= W.puddleDps * dt / this.hc(p.team);
             p.flashT = Math.max(p.flashT, 0.1);
             if (p.hp <= 0) this.kill(p, null, 'acid');
           }
@@ -983,7 +991,7 @@
         if (!p.team || !p.alive || Math.hypot(p.x - this.legend.x, p.y - this.legend.y) > L.radius) continue;
         this.legend.taken = true;
         const goal = p.team === 'doc' ? 'clean' : 'dirty';
-        const changed = this.teeth.filter((t) => t.state !== goal && !(goal === 'dirty' && t.crownT > 0));
+        const changed = shuffle(this.teeth.filter((t) => t.state !== goal && !(goal === 'dirty' && t.crownT > 0))).slice(0, L.teeth);
         changed.forEach((t) => { t.state = goal; });
         this.players.forEach((q) => { q.action = null; });
         this.emit({ type: 'legend', id: p.id, team: p.team, teeth: changed.map((t) => t.id) });
@@ -1069,7 +1077,7 @@
           sup: +p.superT.toFixed(2), dizzy: +p.dizzyT.toFixed(1), slow: +p.slowT.toFixed(1), lv: p.streak, stunK: p.stunKind,
           prot: +p.spawnT.toFixed(2), run: p.sprint,
         })),
-        race: this.race ? { doc: this.race.doc, bac: this.race.bac, cd: +Math.max(0, this.race.cd).toFixed(2) } : null,
+        race: this.race ? { doc: Math.floor(this.race.doc), bac: Math.floor(this.race.bac), cd: +Math.max(0, this.race.cd).toFixed(2) } : null,
         teeth: this.teeth.map((t) => ({ s: t.state === 'dirty' ? 1 : 0, c: +t.crownT.toFixed(1), p: work[t.id] ? +work[t.id].p.toFixed(3) : 0, w: work[t.id] ? work[t.id].team : null })),
         proj: this.projectiles.map((q) => ({ id: q.id, t: q.type, x: +q.x.toFixed(2), y: +q.y.toFixed(2), z: +q.z.toFixed(2) })),
         bombs: this.bombs.map((b) => ({ id: b.id, type: b.type, kind: b.kind, st: b.state, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2), t: +b.t.toFixed(1), holder: b.holder })),
@@ -1087,7 +1095,7 @@
       if (!p) return null;
       const clean = this.teeth.filter((t) => t.state === 'clean').length;
       const base = { st: this.state, tl: Math.max(0, this.timeLeft), cd: Math.max(0, this.countdown), score: { clean, dirty: 16 - clean }, res: this.result,
-        race: this.race ? { doc: this.race.doc, bac: this.race.bac, cd: +Math.max(0, this.race.cd).toFixed(1) } : null };
+        race: this.race ? { doc: Math.floor(this.race.doc), bac: Math.floor(this.race.bac), cd: +Math.max(0, this.race.cd).toFixed(1) } : null };
       if (!p.team) return base;
       const w = this.weaponOf(p), W = C.WEAPONS[w];
       const bomb = p.bomb ? this.bombs.find((b) => b.id === p.bomb) : null;
@@ -1151,7 +1159,7 @@
       let faceTo = null;
       if (enemy && (enemy.slimedT <= 0 || p.team === 'doc')) {
         faceTo = Math.atan2(enemy.y - p.y, enemy.x - p.x);
-        if (Math.abs(angDiff(p.a, faceTo)) < 0.18 && Math.random() < (p.team === 'doc' ? 0.25 : 0.7)) inp.fire = true;
+        if (Math.abs(angDiff(p.a, faceTo)) < 0.18 && Math.random() < 0.5) inp.fire = true;
       }
       // Hongo cerca: dispararle
       const fg = !faceTo && this.fungi.find((f) => Math.hypot(f.x - p.x, f.y - p.y) < 5 && lineOfSight(p.x, p.y, f.x, f.y));

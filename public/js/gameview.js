@@ -158,7 +158,7 @@
             this.fx.flashUntil = now + 1200; this.fx.flashColor = doc ? '#9df' : '#6a3a10';
             this.fx.shakeUntil = now + 900;
             e.teeth.forEach((i) => { const t = MAP.teeth[i]; this.burst(t.x, t.y, 0.8, doc ? ['#fff', '#8ef', '#bef'] : ['#5a2a08', '#c86a20', '#fff'], 18, 2, 0.08); this.fx.toothFlash[i] = now + 1500; this.fx.toothFlashColor[i] = doc ? '#bff' : '#8a4a10'; });
-            this.announce(doc ? `🦷🧴 ¡ENJUAGUE BUCAL LEGENDARIO!<small>${name(e.id)} limpió todos los dientes</small>` : `🦠🥤 ¡COCA LEGENDARIA!<small>${name(e.id)} ensució todos los dientes</small>`, 'big b-' + (doc ? 'clean' : 'dirty'), 3000);
+            this.announce(doc ? `🦷🧴 ¡ENJUAGUE BUCAL LEGENDARIO!<small>${name(e.id)} limpió ${e.teeth.length} dientes</small>` : `🦠🥤 ¡COCA LEGENDARIA!<small>${name(e.id)} ensució ${e.teeth.length} dientes</small>`, 'big b-' + (doc ? 'clean' : 'dirty'), 3000);
             break;
           }
           case 'contagionStart': Au.play('dirty'); this.announce(`🧫 ¡${name(e.id)} esparce CARIES!<small>Elimínalo para detener el contagio</small>`, 'b-dirty', 3000); break;

@@ -7,20 +7,20 @@
     // ── Valores principales ──
     GAME_DURATION: 180,          // segundos
     TOOTH_ACTION_TIME: 3,        // segundos para limpiar / ensuciar
-    BACTERIA_RESPAWN_TIME: 4,
-    DOCTOR_RESPAWN_TIME: 5,
+    BACTERIA_RESPAWN_TIME: 4,    // balance: los dos equipos reaparecen igual
+    DOCTOR_RESPAWN_TIME: 4,
     SPAWN_PROTECTION: 3,         // segundos de protección al reaparecer (no recibe daño ni viscosidad)
     SPRINT_SPEED: 1.45,          // joystick empujado al tope hacia adelante = correr
     SPRINT_THRESHOLD: 0.9,
-    SLIME_IMMOBILIZE_TIME: 8,
+    SLIME_IMMOBILIZE_TIME: 4,    // antes 8: inmovilizar tanto tiempo era casi una muerte segura
     SLIME_IMMUNITY_TIME: 4,      // tras quitarse la viscosidad no puede volver a ser inmovilizado (evita cadenas infinitas)
-    SLIME_COOLDOWN: 5,
+    SLIME_COOLDOWN: 6,
     SLIME_HITS_TO_STICK: 1,      // impactos de viscosidad necesarios para inmovilizar
     SLIME_STACK_TIME: 14,        // segundos que dura el estado "pegajoso" (1er impacto) antes de perderse
     STICKY_SPEED: 0.6,
     // Habilidad de los odontólogos: escudo que bloquea viscosidad y ácido
-    SHIELD_TIME: 4,
-    SHIELD_COOLDOWN: 7,          // empieza a contar cuando el escudo se acaba
+    SHIELD_TIME: 3,              // ahora es automático: más corto para que no bloquee todo
+    SHIELD_COOLDOWN: 9,          // empieza a contar cuando el escudo se acaba
     BOMB_LIFETIME: 20,           // segundos en el suelo para capturarla
     BOMB_HOLD_TIME: 20,          // segundos para lanzarla tras recogerla (si no, se pierde)
     BOMB_TEETH_AFFECTED: 7,
@@ -37,11 +37,13 @@
     // Estrella: diente de oro que cualquiera puede agarrar (inmortal, súper veloz y disparo automático)
     SUPER: { count: 3, window: [30, 165], life: 18, duration: 6, speed: 1.8, cooldown: 0.4, radius: 0.9 },
     // Racha: cada eliminación da más vida y dispara más rápido; al morir se pierde
-    STREAK: { max: 5, hp: 15, heal: 25, cooldown: 0.1 },
+    STREAK: { max: 3, hp: 10, heal: 20, cooldown: 0.08 }, // más suave para que quien va ganando no se escape
     MAX_PLAYERS: 14,
     // Modos (total de jugadores): 1 vs 1, 2 vs 2, 5 vs 5, 7 vs 7
     MODES: { 2: { doc: 1, bac: 1 }, 4: { doc: 2, bac: 2 }, 10: { doc: 5, bac: 5 }, 14: { doc: 7, bac: 7 } },
     COUNTDOWN: 3,
+    // Equipos desiguales: ventaja = (jugadores rivales / tuyos) ^ HANDICAP_POWER (probado con bots: ~50 % de victorias en 1v2, 2v3, 3v5)
+    HANDICAP_POWER: 1.25,
 
     // ── Simulación ──
     TICK_RATE: 30,
@@ -58,17 +60,17 @@
     FOOD_JUMP_HEIGHT: 0.22,      // altura para pasar por encima de restos de comida
     AIM_ASSIST_DEG: 7,           // ayuda de puntería (los joysticks de celular son imprecisos)
     DOCTOR_HP: 100,
-    BACTERIA_HP: 90,
+    BACTERIA_HP: 100,            // misma vida: cada arma principal necesita 3 impactos
     PICKUP_RADIUS: 0.9,
 
     WEAPONS: {
       none:  { team: 'doc', label: 'SIN ARMA', icon: '✋' },
-      water: { team: 'doc', label: 'PISTOLA DE AGUA', icon: '💦', kind: 'projectile', speed: 11.5, damage: 45, cooldown: 0.55, range: 13, radius: 0.22 },
+      water: { team: 'doc', label: 'PISTOLA DE AGUA', icon: '💦', kind: 'projectile', speed: 11.5, damage: 40, cooldown: 0.6, range: 12, radius: 0.22 },
       drill: { team: 'doc', label: 'TALADRO DENTAL', icon: '🔩', kind: 'melee', range: 1.9, arcDeg: 70, damage: 100, cooldown: 1.1 },
       slime: { team: 'bac', label: 'VISCOSIDAD', icon: '🟢', kind: 'projectile', speed: 9.5, range: 12, radius: 0.3 },
-      smg:   { team: 'all', label: 'METRALLETA', icon: '🔫', kind: 'projectile', speed: 17, damage: 9, cooldown: 0.12, range: 12, radius: 0.14, spread: 0.07 },
-      acid:  { team: 'bac', label: 'ÁCIDO', icon: '🧪', kind: 'projectile', speed: 10, damage: 34, cooldown: 0.9, range: 11, radius: 0.24,
-               puddleRadius: 0.9, puddleTime: 3, puddleDps: 12 },
+      smg:   { team: 'all', label: 'METRALLETA', icon: '🔫', kind: 'projectile', speed: 17, damage: 7, cooldown: 0.12, range: 9, radius: 0.14, spread: 0.08 }, // corto alcance, no reemplaza al arma principal
+      acid:  { team: 'bac', label: 'ÁCIDO', icon: '🧪', kind: 'projectile', speed: 10.5, damage: 36, cooldown: 0.65, range: 12, radius: 0.24,
+               puddleRadius: 0.9, puddleTime: 3, puddleDps: 10 },
     },
     // el botón DISPARAR también limpia / ensucia junto a un diente, por eso ya no hace falta "sin arma"
     TEAM_WEAPONS: { doc: ['water', 'smg'], bac: ['slime', 'acid', 'smg'] },
@@ -90,7 +92,7 @@
     CONTAGION: { duration: 16, every: 4, maxTeeth: 4 },
     // Final: la lengua se abre como laberinto; quien agarre el objeto legendario decide todos los dientes
     // (odontólogo = enjuague bucal: todos limpios · bacteria = coca: todos sucios, menos los que tienen corona)
-    LEGEND: { warnAt: 20, openAt: 7, radius: 0.8 },
+    LEGEND: { warnAt: 20, openAt: 7, radius: 0.8, teeth: 4 }, // cambia 4 dientes (antes todos: decidía la partida sola)
     BOOST: { firstAt: 25, every: 30, life: 15, duration: 8, speed: 1.3, actionSpeed: 1.5, radius: 0.8 },
   };
 });

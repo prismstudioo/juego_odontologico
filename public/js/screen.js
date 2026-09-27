@@ -78,7 +78,7 @@
     if (!humans) msg = `Esperando jugadores reales… (escanea el QR)` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
     else if (!info.canStart) msg = 'Cada equipo necesita al menos 1 jugador · o pulsa RELLENAR CON BOTS';
     else if (info.full) msg = '¡TODO LISTO! PULSA INICIAR PARTIDA';
-    else msg = `Faltan ${info.mode - inTeams} jugadores: JUGAR ASÍ o RELLENAR CON BOTS` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
+    else msg = `Faltan ${info.mode - inTeams} jugadores: JUGAR ASÍ (el equipo con menos jugadores recibe ventaja) o RELLENAR CON BOTS` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
     $('lobbyMsg').textContent = msg;
     if (info.state === 'lobby') { snaps.clear(); show(modeChosen ? 'lobby' : 'modeSelect'); }
     else show('game');

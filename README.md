@@ -46,12 +46,12 @@ Modo prueba con teclado: WASD mover, Shift+W correr, mouse / ← → girar, clic
 - 🏆 Pantalla final con el equipo ganador, tabla de jugadores y MVP.
 
 ## Mecánicas del mapa (sin botones extra)
-- 🛡️ **Escudo (odontólogos)**: botón ESCUDO (tecla R en solitario). 4 s inmune a la viscosidad; mientras está activo no puedes disparar. Recarga 7 s desde que se acaba.
-- 🟢 **Viscosidad**: inmoviliza al primer impacto (8 s). Recarga 5 s. Después hay 4 s de inmunidad para que no se encadene.
+- 🛡️ **Escudo (odontólogos)**: automático. Se activa solo cuando viene una viscosidad hacia ti: 3 s inmune a la viscosidad. Recarga 9 s.
+- 🟢 **Viscosidad**: inmoviliza al primer impacto (4 s). Recarga 6 s. Después hay 4 s de inmunidad para que no se encadene.
 - 📡 En 5 vs 5 y 7 vs 7 la pantalla muestra una **cámara aérea** grande en vivo para el público, y los celulares muestran la cámara de cada jugador (se puede apagar).
-- 💦 **Pistola de agua**: 2 impactos para eliminar una bacteria (vida 90, reaparece en 4 s). 🧪 El ácido elimina a un odontólogo en 3 impactos.
+- ⚖️ **Balance**: los dos equipos tienen 100 de vida y reaparecen en 4 s. 💦 Pistola de agua (40) y 🧪 ácido (36 + charco) eliminan en 3 impactos; 🔫 la metralleta es de corto alcance. Si los equipos son desiguales, el equipo con menos jugadores recibe menos daño, limpia/ensucia más rápido y sus disparos a la muela valen más (probado con bots: ~50 % de victorias).
 - 💣 **Bombas neutrales** (3 por partida): la gana el equipo que la agarre. Odontólogo → limpieza masiva (7 dientes); bacteria → contaminación masiva (7 dientes, las coronas protegen). Cualquier impacto hace soltarla y vuelve a ser neutral.
-- ⭐ **Final legendario**: a los 20 s hay aviso y en los **últimos 7 s la lengua se abre** como laberinto (3 entradas, ~5 s de camino). Quien agarre el objeto legendario decide: odontólogo = **enjuague bucal** (todos los dientes limpios) · bacteria = **coca** (todos sucios, menos los que tienen corona). Dentro de la lengua la saliva lava la viscosidad.
+- ⭐ **Final legendario**: a los 20 s hay aviso y en los **últimos 7 s la lengua se abre** como laberinto (3 entradas, ~5 s de camino). Quien agarre el objeto legendario cambia **4 dientes** a favor de su equipo: odontólogo = **enjuague bucal** (limpia) · bacteria = **coca** (ensucia, menos los que tienen corona). Dentro de la lengua la saliva lava la viscosidad.
 - 🍄 **Hongo Cándida**: aparece cada ~50 s y persigue al jugador más cercano (de cualquier equipo). Muerde, empuja y hace daño. Ambos equipos pueden eliminarlo.
 - 🪨 **Tonsilolitos**: caen del paladar con una sombra roja de aviso. Noquean 2,5 s y quedan como roca (cobertura) unos segundos.
 - 🧴 **Flúor** (odontólogos) / 🍬 **Azúcar** (bacterias): aparecen juntos. Más velocidad y limpian/ensucian más rápido durante 8 s.
