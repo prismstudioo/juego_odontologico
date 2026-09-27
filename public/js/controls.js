@@ -153,7 +153,8 @@
       const me = st && st.me;
       if (!me) return;
       root.dataset.team = me.team;
-      const efx = (me.sticky > 0 ? ` 🟢${me.sticky}/2` : '') + (me.boost > 0 ? ' ⚡' : '') + (me.crown ? ' 👑' : '') + (me.contagion > 0 ? ' 🧫' : '');
+      const efx = (me.sup > 0 ? ` ⭐${Math.ceil(me.sup)}s` : '') + (me.lv > 0 ? ` ⬆${me.lv}` : '') + (me.dizzy > 0 ? ' 😂' : '') + (me.slow > 0 ? ' 🧵' : '')
+        + (me.sticky > 0 ? ` 🟢${me.sticky}/2` : '') + (me.boost > 0 ? ' ⚡' : '') + (me.crown ? ' 👑' : '') + (me.contagion > 0 ? ' 🧫' : '');
       set('hp', q('.c-hp'), `♥ ${me.hp}${efx}`);
       set('score', q('.c-score'), `🦷 ${st.score.clean} · ${st.score.dirty} 🦠`);
       set('time', q('.c-time'), fmt(st.tl));
@@ -183,13 +184,17 @@
       }
       const bomb = q('.cb-bomb');
       bomb.classList.toggle('hidden', !me.bomb);
-      if (me.bomb) { bomb.dataset.type = me.bomb.type; set('bombT', bomb.querySelector('em'), Math.ceil(me.bomb.t) + 's'); }
+      if (me.bomb) {
+        bomb.dataset.type = me.bomb.type;
+        set('bombIc', bomb.querySelector('.ic'), me.bomb.kind && me.bomb.kind !== 'teeth' ? C.BOMB_KINDS[me.bomb.kind].icon : '💣');
+        set('bombT', bomb.querySelector('em'), Math.ceil(me.bomb.t) + 's');
+      }
 
       const ov = q('.c-overlay');
       let msg = '';
       if (!me.alive) msg = `💀 ELIMINADO<br><b>${Math.ceil(me.dead)}</b>`;
       else if (me.slimed > 0) msg = `🟢 ¡INMOVILIZADO!<br><b>${Math.ceil(me.slimed)}</b><small>puedes seguir girando</small>`;
-      else if (me.stun > 0) msg = `💫 ¡NOQUEADO!<br><b>${Math.ceil(me.stun)}</b><small>te cayó un tonsilolito</small>`;
+      else if (me.stun > 0) msg = me.stunK === 'anest' ? `💉 ¡ANESTESIADO!<br><b>${Math.ceil(me.stun)}</b><small>te durmió una bomba de anestesia</small>` : `💫 ¡NOQUEADO!<br><b>${Math.ceil(me.stun)}</b><small>te cayó un tonsilolito</small>`;
       else if (st.st === 'countdown') msg = `<b>${Math.max(1, Math.ceil(st.cd))}</b>`;
       ov.classList.toggle('hidden', !msg);
       ov.classList.toggle('slime', me.slimed > 0);

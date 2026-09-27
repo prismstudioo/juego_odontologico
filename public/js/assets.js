@@ -52,9 +52,14 @@
     A.spr.bomb_clean = variants(tinted(A.img.bomb, 'rgba(70,170,255,0.35)'));
     A.spr.bomb_dirty = variants(tinted(A.img.bomb, 'rgba(90,255,60,0.4)'));
     A.spr.bomb_neutral = variants(tinted(A.img.bomb, 'rgba(255,210,60,0.3)'));
+    // bombas de efecto (anestesia, gas de la risa, amalgama, hilo dental)
+    A.spr.bomb_anest = variants(tinted(A.img.bomb, 'rgba(255,110,200,0.45)'));
+    A.spr.bomb_gas = variants(tinted(A.img.bomb, 'rgba(170,110,255,0.5)'));
+    A.spr.bomb_amalgam = variants(tinted(A.img.bomb, 'rgba(210,215,225,0.6)'));
+    A.spr.bomb_floss = variants(tinted(A.img.bomb, 'rgba(255,255,255,0.55)'));
     const S = MOC.TEX.sprites;
     for (const key of ['popcorn', 'chip', 'broccoli', 'puddle', 'fungus', 'stone']) A.spr[key] = variants(S[key]);
-    for (const key of ['shadow', 'sugar', 'fluor', 'crown', 'strain', 'bubble', 'legend', 'beam']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
+    for (const key of ['shadow', 'sugar', 'fluor', 'crown', 'strain', 'super', 'bubble', 'legend', 'beam']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
     for (const key of ['water', 'slime', 'acid']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
     return A;
   };

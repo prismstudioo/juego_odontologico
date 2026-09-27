@@ -17,12 +17,24 @@
     STICKY_SPEED: 0.6,
     // Habilidad de los odontólogos: escudo que bloquea viscosidad y ácido
     SHIELD_TIME: 4,
-    SHIELD_COOLDOWN: 7,          // empieza a contar cuando el escudo se acaba           // velocidad mientras está pegajoso
+    SHIELD_COOLDOWN: 7,          // empieza a contar cuando el escudo se acaba
     BOMB_LIFETIME: 20,           // segundos en el suelo para capturarla
     BOMB_HOLD_TIME: 20,          // segundos para lanzarla tras recogerla (si no, se pierde)
     BOMB_TEETH_AFFECTED: 7,
-    BOMBS_PER_MATCH: 3,          // bombas neutrales: el efecto depende del equipo que la gane
-    BOMB_SPAWN_WINDOW: [20, 150], // segundos transcurridos en los que pueden aparecer bombas
+    BOMBS_PER_MATCH: 5,          // una de cada tipo (ver BOMB_KINDS), en orden aleatorio
+    BOMB_SPAWN_WINDOW: [15, 160], // segundos transcurridos en los que pueden aparecer bombas
+    // Tipos de bomba: 'teeth' cambia dientes según el equipo; las demás afectan a los enemigos de quien la lanza
+    BOMB_KINDS: {
+      teeth:   { icon: '💣', label: 'BOMBA DENTAL' },
+      anest:   { icon: '💉', label: 'BOMBA DE ANESTESIA', radius: 3.4, stun: 3.5 },      // duerme a los enemigos
+      gas:     { icon: '😂', label: 'GAS DE LA RISA', radius: 3.8, time: 6 },            // controles invertidos
+      amalgam: { icon: '💥', label: 'BOMBA DE AMALGAMA', radius: 3.2, damage: 75, knockback: 1.4 },
+      floss:   { icon: '🧵', label: 'BOMBA DE HILO DENTAL', radius: 3.4, time: 6, speed: 0.45 }, // enreda y frena
+    },
+    // Estrella: diente de oro que cualquiera puede agarrar (inmortal, súper veloz y disparo automático)
+    SUPER: { count: 3, window: [30, 165], life: 18, duration: 6, speed: 1.8, cooldown: 0.4, radius: 0.9 },
+    // Racha: cada eliminación da más vida y dispara más rápido; al morir se pierde
+    STREAK: { max: 5, hp: 15, heal: 25, cooldown: 0.1 },
     MAX_PLAYERS: 14,
     // Modos (total de jugadores): 1 vs 1, 2 vs 2, 5 vs 5, 7 vs 7
     MODES: { 2: { doc: 1, bac: 1 }, 4: { doc: 2, bac: 2 }, 10: { doc: 5, bac: 5 }, 14: { doc: 7, bac: 7 } },

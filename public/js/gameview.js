@@ -4,9 +4,17 @@
   const C = MOC.CONFIG, MAP = MOC.MAP, R = MOC.Render3D, TC = R.TEAM_COLOR;
   const FONT = '"Pixelify Sans", "Courier New", monospace';
   const TEAM_NAME = { doc: '🦷 ODONTÓLOGO', bac: '🦠 BACTERIA' };
-  const BOMB_NAME = { clean: 'BOMBA DE LIMPIEZA', dirty: 'BOMBA DE CONTAMINACIÓN', neutral: 'BOMBA' };
-  const BOMB_ICON = { clean: '🦷💣', dirty: '🦠💣', neutral: '💣' };
+  const BOMB_NAME = { clean: 'BOMBA DE LIMPIEZA', dirty: 'BOMBA DE CONTAMINACIÓN', neutral: 'BOMBA DENTAL' };
+  // Nombre e ícono de una bomba según su tipo (las de dientes cambian de nombre según el equipo)
+  const bombLabel = (kind, type) => (!kind || kind === 'teeth' ? `💣 ${BOMB_NAME[type] || BOMB_NAME.neutral}` : `${C.BOMB_KINDS[kind].icon} ${C.BOMB_KINDS[kind].label}`);
+  const BOMB_FX = { // colores de partículas, destello y texto del anuncio al explotar
+    anest: { cols: ['#ff7ad0', '#fff', '#ffc0e8'], flash: '#ff9ad8', text: '💉 ¡ANESTESIA!', sub: 'dormidos' },
+    gas: { cols: ['#b88aff', '#e0d0ff', '#fff'], flash: '#c8a0ff', text: '😂 ¡GAS DE LA RISA!', sub: 'con controles al revés' },
+    amalgam: { cols: ['#dfe4ee', '#8a93a3', '#fff', '#ffd84a'], flash: '#fff', text: '💥 ¡AMALGAMA!', sub: 'heridos' },
+    floss: { cols: ['#fff', '#e8f8ff', '#9adfff'], flash: '#e8f8ff', text: '🧵 ¡HILO DENTAL!', sub: 'enredados y lentos' },
+  };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
   const fmtTime = (s) => { s = Math.ceil(s); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -35,7 +43,7 @@
       this.targets = {};
       this.minimap = buildMinimap();
       this.lastPos = {};
-      this.fx = { particles: [], recoil: {}, moving: {}, shakeUntil: 0, flashUntil: 0, flashColor: '', toothFlash: [], toothFlashColor: [] };
+      this.fx = { particles: [], recoil: {}, moving: {}, cam: {}, shakeUntil: 0, flashUntil: 0, flashColor: '', toothFlash: [], toothFlashColor: [] };
       this.cache = {};
       this.goUntil = 0;
       this.buildOverlay();
@@ -102,8 +110,9 @@
             const v = snap.players.find((p) => p.id === e.id);
             this.burst(e.x, e.y, 0.5, v && v.team === 'bac' ? ['#a6f', '#6cf', '#8f4', '#fff'] : ['#f33', '#fff', '#a00'], 40, 3.5, 0.12);
             Au.play('kill');
-            const icon = C.WEAPONS[e.weapon] ? C.WEAPONS[e.weapon].icon : { fungus: '🍄', tonsil: '🪨' }[e.weapon] || '💀';
+            const icon = C.WEAPONS[e.weapon] ? C.WEAPONS[e.weapon].icon : { fungus: '🍄', tonsil: '🪨', amalgam: '💥' }[e.weapon] || '💀';
             this.feed(e.by ? `${name(e.by)} ${icon} ${name(e.id)}` : `${icon} ${name(e.id)} cayó`);
+            if (e.lost >= 2) this.feed(`💔 ${name(e.id)} perdió su racha de nivel ${e.lost}`);
             break;
           }
           case 'slimed': Au.play('slimed'); this.feed(`${name(e.by)} 🟢 inmovilizó a ${name(e.id)}`); break;
@@ -158,12 +167,39 @@
             Au.play(clean ? 'clean' : 'dirty');
             break;
           }
-          case 'bombSpawn': Au.play('bombSpawn'); this.announce('💣 ¡BOMBA!<small>la gana el equipo que la agarre</small>', 'b-neutral', 3000); break;
-          case 'bombPick': Au.play('bombPick'); this.announce(`${name(e.id)} tiene la ${BOMB_NAME[e.bombType]}`, 'b-' + e.bombType); break;
+          case 'bombSpawn': Au.play('bombSpawn'); this.announce(`${bombLabel(e.kind, 'neutral')}<small>${!e.kind || e.kind === 'teeth' ? 'la gana el equipo que la agarre' : 'agárrala y lánzala a los rivales'}</small>`, 'b-neutral', 3000); break;
+          case 'bombPick': Au.play('bombPick'); this.announce(`${name(e.id)} tiene la ${bombLabel(e.kind, e.bombType)}`, 'b-' + e.bombType); break;
+          case 'superSpawn': Au.play('bombSpawn'); this.announce('⭐ ¡DIENTE DE ORO!<small>cualquiera puede agarrarlo: inmortal, súper veloz y disparo automático</small>', 'big b-neutral', 3000); break;
+          case 'superPick': {
+            Au.play('crown'); Au.play('pickup');
+            const p = snap.players.find((q) => q.id === e.id);
+            if (p) this.burst(p.x, p.y, 0.8, ['#ffd84a', '#ff6ad5', '#6af0ff', '#fff'], 40, 3, 0.1);
+            this.announce(`⭐ ¡${name(e.id)} ES INVENCIBLE!<small>${C.SUPER.duration} segundos · ¡huyan!</small>`, 'big b-neutral', 2500);
+            break;
+          }
+          case 'superEnd': this.feed(`⭐ se acabó la estrella de ${name(e.id)}`); break;
+          case 'levelUp': {
+            Au.play('pickup');
+            const p = snap.players.find((q) => q.id === e.id);
+            if (p) this.burst(p.x, p.y, 1, ['#ffe066', '#fff', '#fa3'], 20, 2, 0.07);
+            this.feed(`⬆️ ${name(e.id)} sube a NIVEL ${e.lv} <small>(+vida, +cadencia)</small>`);
+            break;
+          }
           case 'bombDrop': this.announce(`¡${name(e.id)} soltó la bomba!`, 'b-' + e.bombType); break;
           case 'bombThrow': Au.play('bombThrow'); break;
           case 'bombExpire': this.announce(e.held ? '💨 La bomba se desactivó (no la lanzaron a tiempo)' : '💨 La bomba desapareció', '', 2000); break;
           case 'bombExplode': {
+            if (e.kind && e.kind !== 'teeth') {
+              const F = BOMB_FX[e.kind];
+              Au.play('boom');
+              this.fx.shakeUntil = now + (e.kind === 'amalgam' ? 800 : 500);
+              this.fx.flashUntil = now + 700; this.fx.flashColor = F.flash;
+              this.burst(e.x, e.y, 0.5, F.cols, 90, 6, 0.15);
+              // anillo de partículas que marca el radio del efecto
+              for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; this.burst(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r, 0.2, F.cols, 1, 0.5, 0.1); }
+              this.announce(`${F.text}<small>${e.ids.length ? e.ids.map(name).join(', ') + ' ' + F.sub : 'no alcanzó a nadie'}</small>`, 'big b-' + (e.team === 'doc' ? 'clean' : 'dirty'), 2600);
+              break;
+            }
             const clean = e.bombType === 'clean';
             Au.play('boom');
             this.fx.shakeUntil = now + 700;
@@ -287,7 +323,7 @@
       MAP.props.forEach((p) => items.push({ y: p.y, f: () => draw(this.A.spr[p.kind], p.x, p.y + 0.2, 0.6) }));
       (snap.stones || []).forEach((st) => { if (st.st === 'rock') items.push({ y: st.y, f: () => draw(this.A.spr.stone, st.x, st.y + 0.2, 0.8) }); });
       (snap.pickups || []).forEach((q) => items.push({ y: q.y, f: () => draw(this.A.spr[q.type], q.x, q.y + 0.2, 0.8) }));
-      snap.bombs.forEach((b) => { if (b.st !== 'held') items.push({ y: b.y, f: () => draw(this.A.spr['bomb_' + b.type], b.x, b.y + 0.2 - (b.z || 0), 1.1) }); });
+      snap.bombs.forEach((b) => { if (b.st !== 'held') items.push({ y: b.y, f: () => draw(this.A.spr[R.bombKey(b.type, b.kind)], b.x, b.y + 0.2 - (b.z || 0), 1.1) }); });
       if (snap.legend) items.push({ y: snap.legend.y, f: () => draw(this.A.spr.legend, snap.legend.x, snap.legend.y + 0.3, 1.3) });
       (snap.fungi || []).forEach((f) => items.push({ y: f.y, f: () => draw(this.A.spr.fungus, f.x, f.y + 0.3, 1.6) }));
       snap.players.forEach((p) => {
@@ -295,14 +331,15 @@
         items.push({ y: p.y, f: () => {
           ctx.strokeStyle = TC[p.team]; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.ellipse(X(p.x), Y(p.y) + 0.3 * k, 0.55 * k, 0.28 * k, 0, 0, 7); ctx.stroke();
+          if (p.sup > 0) { ctx.strokeStyle = ['#ffd84a', '#ff6ad5', '#6af0ff'][Math.floor(now / 80) % 3]; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y - 0.5), 1.2 * k, 0, 7); ctx.stroke(); ctx.strokeStyle = TC[p.team]; ctx.lineWidth = 2; }
           if (p.shield > 0) { ctx.strokeStyle = '#7ef'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y - 0.5), 1.1 * k, 0, 7); ctx.stroke(); ctx.strokeStyle = TC[p.team]; ctx.lineWidth = 2; }
           ctx.beginPath(); ctx.moveTo(X(p.x), Y(p.y) + 0.3 * k); ctx.lineTo(X(p.x + Math.cos(p.a) * 1.1), Y(p.y + Math.sin(p.a) * 1.1) + 0.3 * k); ctx.stroke();
           const spr = R.playerSprite(this.A, p);
           ctx.globalAlpha = p.stun > 0 && Math.floor(now / 90) % 2 ? 0.5 : 1;
           ctx.drawImage(p.sticky > 0 && spr.green ? spr.green : p.flash ? spr.hit : spr.lv[0], X(p.x) - 0.8 * k * spr.w / spr.h, Y(p.y + 0.3 - p.z) - 1.6 * k, 1.6 * k * spr.w / spr.h, 1.6 * k);
           ctx.globalAlpha = 1;
-          if (p.bomb) draw(this.A.spr['bomb_' + p.bomb], p.x, p.y - 1.4 - p.z, 0.7);
-          this.outlined(ctx, p.name, X(p.x), Y(p.y - 1.5 - p.z), Math.max(7, k * 0.45), TC[p.team]);
+          if (p.bomb) draw(this.A.spr[R.bombKey(p.bomb, p.bk)], p.x, p.y - 1.4 - p.z, 0.7);
+          this.outlined(ctx, (p.sup > 0 ? '⭐' : '') + (p.lv > 0 ? `⬆${p.lv} ` : '') + p.name, X(p.x), Y(p.y - 1.5 - p.z), Math.max(7, k * 0.45), TC[p.team]);
         } });
       });
       items.sort((a, b) => a.y - b.y).forEach((it) => it.f());
@@ -311,6 +348,45 @@
       this.outlined(ctx, '📡 CÁMARA AÉREA · EN VIVO', r.x + r.w / 2, r.y + r.h - head / 2, Math.min(13, r.w / 28), '#ffe066');
       ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 4; ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
       ctx.restore();
+    }
+
+    // Movimiento de cámara por jugador: pasos, inclinación al girar/moverse de lado, retroceso,
+    // aterrizaje, mareo del gas y FOV más amplio con velocidad
+    camState(me, dt, now) {
+      const c = this.fx.cam[me.id] || (this.fx.cam[me.id] = { x: me.x, y: me.y, z: me.z, a: me.a, spd: 0, side: 0, turn: 0, phase: 0, roll: 0, land: 0, fov: 0, kick: 0, lastShot: 0 });
+      const inv = dt > 0.0005 ? 1 / dt : 0;
+      let vx = (me.x - c.x) * inv, vy = (me.y - c.y) * inv;
+      if (Math.hypot(vx, vy) > 15) { vx = 0; vy = 0; } // reaparición: sin saltos de cámara
+      const ca = Math.cos(me.a), sa = Math.sin(me.a);
+      const side = -vx * sa + vy * ca, spd = Math.hypot(vx, vy);
+      const turn = clamp(angDiff(c.a, me.a) * inv, -8, 8);
+      const k = Math.min(1, dt * 10);
+      c.spd += (spd - c.spd) * k; c.side += (side - c.side) * k; c.turn += (turn - c.turn) * Math.min(1, dt * 12);
+      const walk = me.z <= 0 && me.alive ? clamp(c.spd / 3.3, 0, 1.6) : 0;
+      c.phase += dt * (4 + c.spd * 2.2) * (walk > 0.05 ? 1 : 0);
+      // aterrizaje tras un salto
+      if (c.z > 0.08 && me.z <= 0) c.land = Math.min(1, c.z * 1.5 + 0.5);
+      c.land = Math.max(0, c.land - dt * 3.5);
+      // retroceso del disparo
+      const rec = this.fx.recoil[me.id];
+      if (rec && rec !== c.lastShot) { c.lastShot = rec; c.kick = Math.min(1.5, c.kick + 1); }
+      c.kick = Math.max(0, c.kick - dt * 7);
+      // inclinación: al girar, al moverse de lado, mareado por el gas, o caído al morir
+      let roll = clamp(-c.turn * 0.02 - c.side * 0.012, -0.1, 0.1);
+      if (me.dizzy > 0) roll += Math.sin(now / 380) * 0.14;
+      if (me.stun > 0) roll += Math.sin(now / 520) * 0.06;
+      if (!me.alive) roll = 0.38;
+      c.roll += (roll - c.roll) * Math.min(1, dt * (me.alive ? 7 : 3));
+      const fov = (me.sup > 0 ? 0.22 : me.boost > 0 ? 0.08 : 0) + clamp((c.spd - 3.3) * 0.04, 0, 0.12);
+      c.fov += (fov - c.fov) * Math.min(1, dt * 5);
+      c.x = me.x; c.y = me.y; c.z = me.z; c.a = me.a;
+      const breathe = Math.sin(now / 900) * 0.006;
+      c.wobX = Math.cos(c.phase) * walk; c.wobY = Math.sin(c.phase * 2) * walk;
+      c.bobX = c.wobX * 0.035; c.bobY = c.wobY * 0.03 + breathe;
+      c.eye = -c.land * 0.14;
+      c.pitch = c.kick * 0.035 + c.land * 0.03 + (me.dizzy > 0 ? Math.sin(now / 450) * 0.04 : 0);
+      c.yaw = me.dizzy > 0 ? Math.sin(now / 610) * 0.08 : 0;
+      return c;
     }
 
     target(i, rect) {
@@ -354,8 +430,18 @@
         if (!rect) return;
         if (!me) { this.drawAerial(ctx, rect, snap, now); return; }
         const T = this.target(i, rect);
+        const cam = this.camState(me, dt, now);
         const tags = R.render(T, this.A, snap, me, this.fx, now);
-        ctx.drawImage(T.canvas, rect.x, rect.y, rect.w, rect.h);
+        if (Math.abs(cam.roll) > 0.002) {
+          // inclinar la vista y agrandarla lo justo para que no se vean las esquinas
+          const t = Math.abs(cam.roll), sc = Math.cos(t) + Math.sin(t) * Math.max(rect.w / rect.h, rect.h / rect.w);
+          ctx.save();
+          ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+          ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
+          ctx.rotate(cam.roll); ctx.scale(sc, sc);
+          ctx.drawImage(T.canvas, -rect.w / 2, -rect.h / 2, rect.w, rect.h);
+          ctx.restore();
+        } else ctx.drawImage(T.canvas, rect.x, rect.y, rect.w, rect.h);
         this.drawHud(ctx, rect, T, me, snap, tags, now);
       });
       this.bigLayout = viewIds[0] === 'aerial';
@@ -406,6 +492,10 @@
       this.outlined(ctx, TEAM_NAME[me.team], r.x + pad + 16 * s, r.y + pad + 38 * s, 11 * s, col, 'left');
       if (me.conn === false) this.outlined(ctx, '📵 SIN CONEXIÓN', r.x + pad + 16 * s, r.y + pad + 70 * s, 11 * s, '#f66', 'left');
       const efx = [];
+      if (me.sup > 0) efx.push(`⭐ INVENCIBLE ${Math.ceil(me.sup)}s`);
+      if (me.lv > 0) efx.push(`⬆️ NIVEL ${me.lv}`);
+      if (me.dizzy > 0) efx.push(`😂 AL REVÉS ${Math.ceil(me.dizzy)}s`);
+      if (me.slow > 0) efx.push(`🧵 ENREDADO ${Math.ceil(me.slow)}s`);
       if (me.boost > 0) efx.push(`⚡ ${me.team === 'doc' ? 'FLÚOR' : 'AZÚCAR'} ${Math.ceil(me.boost)}s`);
       if (me.crown) efx.push('👑 CORONA LISTA');
       if (me.contagion > 0) efx.push(`🧫 CONTAGIANDO ${Math.ceil(me.contagion)}s`);
@@ -424,8 +514,8 @@
       ctx.fillRect(hpX, hpY, hpW * clamp(me.hp / me.mhp, 0, 1), 14 * s);
       // Arma
       const W = C.WEAPONS[me.w];
-      this.outlined(ctx, `${W.icon} ${W.label}`, cx, by + 18 * s, 12 * s, '#ffe066');
-      if (me.cd > 0.05) {
+      this.outlined(ctx, me.sup > 0 ? '⭐ DISPARO AUTOMÁTICO' : `${W.icon} ${W.label}`, cx, by + 18 * s, 12 * s, '#ffe066');
+      if (me.cd > 0.05 && !(me.sup > 0)) {
         const max = me.w === 'slime' ? C.SLIME_COOLDOWN : W.cooldown;
         const bw = Math.min(180 * s, r.w * 0.26);
         ctx.fillStyle = '#222'; ctx.fillRect(cx - bw / 2, by + 32 * s, bw, 10 * s);
@@ -436,7 +526,8 @@
       let state = 'ACTIVO', stCol = '#8f8';
       if (!me.alive) { state = `ELIMINADO ${Math.ceil(me.dead)}s`; stCol = '#f55'; }
       else if (me.slimed > 0) { state = `INMOVILIZADO ${Math.ceil(me.slimed)}s`; stCol = '#9f4'; }
-      else if (me.stun > 0) { state = `💫 NOQUEADO ${Math.ceil(me.stun)}s`; stCol = '#ffe066'; }
+      else if (me.stun > 0) { state = me.stunK === 'anest' ? `💉 ANESTESIADO ${Math.ceil(me.stun)}s` : `💫 NOQUEADO ${Math.ceil(me.stun)}s`; stCol = me.stunK === 'anest' ? '#ff9ad8' : '#ffe066'; }
+      else if (me.sup > 0) { state = `⭐ INVENCIBLE ${Math.ceil(me.sup)}s`; stCol = '#ffd84a'; }
       else if (me.shield > 0) { state = `🛡️ ESCUDO ${Math.ceil(me.shield)}s`; stCol = '#7ef'; }
       else if (me.act > 0) { state = `${me.actKind === 'crown' ? 'CORONA' : me.team === 'doc' ? 'LIMPIANDO' : 'ENSUCIANDO'} ${Math.round(me.act * 100)}%`; stCol = col; }
       else if (me.sticky > 0) { state = `🟢 PEGAJOSO ${me.sticky}/${C.SLIME_HITS_TO_STICK}`; stCol = '#9f4'; }
@@ -445,7 +536,7 @@
       if (me.bomb) {
         const b = snap.bombs.find((q) => q.holder === me.id);
         const blink = Math.floor(now / 300) % 2 ? '#fff' : me.bomb === 'clean' ? TC.doc : TC.bac;
-        this.outlined(ctx, `💣 ¡LÁNZALA! ${b ? Math.ceil(b.t) : ''}s`, r.x + r.w - pad, by + 40 * s, 11 * s, blink, 'right');
+        this.outlined(ctx, `${me.bk && me.bk !== 'teeth' ? C.BOMB_KINDS[me.bk].icon : '💣'} ¡LÁNZALA! ${b ? Math.ceil(b.t) : ''}s`, r.x + r.w - pad, by + 40 * s, 11 * s, blink, 'right');
       }
 
       }
@@ -458,8 +549,11 @@
         this.outlined(ctx, '¡INMOVILIZADO!', cx, cy - 60 * s, 24 * s, '#9f4');
         this.outlined(ctx, String(Math.ceil(me.slimed)), cx, cy + 60 * s, 34 * s, '#fff');
       } else if (me.stun > 0) {
-        this.outlined(ctx, '💫 ¡NOQUEADO!', cx, cy - 50 * s, 24 * s, '#ffe066');
-        this.outlined(ctx, 'Te cayó un tonsilolito', cx, cy + 44 * s, 11 * s, '#fff');
+        const anest = me.stunK === 'anest';
+        this.outlined(ctx, anest ? '💉 ¡ANESTESIADO!' : '💫 ¡NOQUEADO!', cx, cy - 50 * s, 24 * s, anest ? '#ff9ad8' : '#ffe066');
+        this.outlined(ctx, anest ? 'Te durmió una bomba de anestesia' : 'Te cayó un tonsilolito', cx, cy + 44 * s, 11 * s, '#fff');
+      } else if (me.dizzy > 0 && now % 2000 < 1400) {
+        this.outlined(ctx, '😂 ¡CONTROLES AL REVÉS!', cx, cy - 60 * s, 16 * s, '#c8a0ff');
       } else if (me.act > 0) {
         const bw = 220 * s;
         ctx.fillStyle = '#000'; ctx.fillRect(cx - bw / 2 - 3, cy + 48 * s - 3, bw + 6, 18 * s + 6);
@@ -488,7 +582,7 @@
         ctx.fillRect(mx + (st.x - 0.5) * k, my + (st.y - 0.5) * k, k, k);
       });
       (snap.pickups || []).forEach((q) => {
-        ctx.fillStyle = { sugar: '#8dff3a', strain: '#8dff3a', fluor: '#3ec5ff', crown: '#ffd84a' }[q.type];
+        ctx.fillStyle = q.type === 'super' ? ['#ffd84a', '#ff6ad5', '#6af0ff'][Math.floor(now / 150) % 3] : { sugar: '#8dff3a', strain: '#8dff3a', fluor: '#3ec5ff', crown: '#ffd84a' }[q.type];
         ctx.fillRect(mx + (q.x - 0.5) * k, my + (q.y - 0.5) * k, k, k);
       });
       if (snap.legend && Math.floor(now / 200) % 2) { ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(mx + snap.legend.x * k, my + snap.legend.y * k, 1.6 * k, 0, 7); ctx.fill(); }
@@ -498,7 +592,7 @@
       });
       snap.bombs.forEach((b) => {
         if (Math.floor(now / 250) % 2) return;
-        ctx.fillStyle = b.type === 'clean' ? TC.doc : b.type === 'dirty' ? TC.bac : '#ffd84a';
+        ctx.fillStyle = R.BOMB_COLOR[b.kind] || (b.type === 'clean' ? TC.doc : b.type === 'dirty' ? TC.bac : '#ffd84a');
         ctx.beginPath(); ctx.arc(mx + b.x * k, my + b.y * k, 1.3 * k, 0, 7); ctx.fill();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
       });
@@ -531,10 +625,10 @@
       const names = {};
       snap.players.forEach((p) => { names[p.id] = p.name; });
       const html = snap.bombs.map((b) => {
-        if (b.st === 'ground') return `<div class="bb b-neutral">💣 BOMBA LIBRE <b>${Math.ceil(b.t)}</b> ¡LA GANA QUIEN LA AGARRE!</div>`;
-        if (b.st === 'held') return `<div class="bb b-${b.type}">${b.type === 'clean' ? '🦷' : '🦠'} BOMBA EN POSESIÓN · ${esc(names[b.holder] || '')} <b>${Math.ceil(b.t)}s</b></div>`;
-        return `<div class="bb b-${b.type}">💣 ¡BOMBA EN EL AIRE!</div>`;
-      }).join('') + snap.players.filter((p) => p.contagion > 0).map((p) => `<div class="bb b-dirty">🧫 CONTAGIO · ${esc(p.name)} <b>${Math.ceil(p.contagion)}s</b></div>`).join('');
+        if (b.st === 'ground') return `<div class="bb b-neutral">${bombLabel(b.kind, 'neutral')} LIBRE <b>${Math.ceil(b.t)}</b> ¡AGÁRRALA!</div>`;
+        if (b.st === 'held') return `<div class="bb b-${b.type}">${b.type === 'clean' ? '🦷' : '🦠'} ${bombLabel(b.kind, b.type)} · ${esc(names[b.holder] || '')} <b>${Math.ceil(b.t)}s</b></div>`;
+        return `<div class="bb b-${b.type}">${bombLabel(b.kind, b.type)} ¡EN EL AIRE!</div>`;
+      }).join('') + snap.players.filter((p) => p.sup > 0).map((p) => `<div class="bb b-neutral">⭐ INVENCIBLE · ${esc(p.name)} <b>${Math.ceil(p.sup)}s</b></div>`).join('') + snap.players.filter((p) => p.contagion > 0).map((p) => `<div class="bb b-dirty">🧫 CONTAGIO · ${esc(p.name)} <b>${Math.ceil(p.contagion)}s</b></div>`).join('');
       this.setText('bombs', this.el.bombs, html, true);
 
       // Cuenta atrás

@@ -211,6 +211,15 @@
       px(5, 3, '#e8b020', 2, 3); px(11, 3, '#e8b020', 2, 3);
       px(4, 8, '#e03a5a', 2, 2); px(8, 8, '#3ac8ff', 2, 2); px(12, 8, '#7ae040', 2, 2);
     }),
+    super: pixCanvas(18, 20, (g, px) => { // estrella: diente de oro brillante
+      for (let y = 0; y < 12; y++) for (let x = 2; x < 16; x++) {
+        const d = Math.hypot((x + 0.5 - 9) / 7, (y + 0.5 - 7) / 6.5);
+        if (d < 1) px(x, y, x < 7 && y < 6 ? '#fff8c0' : d > 0.82 ? '#b07a08' : '#ffcc22');
+      }
+      px(4, 11, '#ffcc22', 4, 7); px(10, 11, '#ffcc22', 4, 7); px(4, 11, '#fff0a0', 1, 6); px(13, 11, '#b07a08', 1, 7);
+      px(4, 18, '#b07a08', 4, 2); px(10, 18, '#b07a08', 4, 2); px(8, 3, '#b07a08', 2, 2);
+      px(0, 1, '#fff', 1, 3); px(-1, 2, '#fff', 3, 1); px(16, 12, '#fff', 1, 3); px(15, 13, '#fff', 3, 1); px(15, 0, '#fff', 2, 2);
+    }),
     strain: pixCanvas(18, 12, (g, px) => { // placa de Petri con cepa de caries
       for (let y = 0; y < 12; y++) for (let x = 0; x < 18; x++) {
         const d = Math.hypot((x - 9) / 9, (y - 6) / 6);

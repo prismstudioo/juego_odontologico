@@ -24,6 +24,10 @@
     return A.spr[`${k}_dirty_${t.side}`];
   }
 
+  // Sprite de una bomba: las de dientes se tiñen por equipo, las de efecto por tipo
+  const bombKey = (type, kind) => 'bomb_' + (kind && kind !== 'teeth' ? kind : type);
+  const BOMB_COLOR = { anest: '#ff7ad0', gas: '#b88aff', amalgam: '#dfe4ee', floss: '#ffffff' };
+
   function playerSprite(A, p) {
     if (p.team === 'bac') return A.spr['bac_' + p.skin];
     if (p.slimed > 0) return A.spr[`doc_${p.skin}_slimed`];
@@ -34,14 +38,17 @@
   function render(T, A, snap, me, fx, now) {
     const { W, H, buf, zbuf, top: wTop, bot: wBot, ctx } = T;
     const tags = [];
-    const hfov = clamp(2 * Math.atan(Math.tan(20 * Math.PI / 180) * W / H), 60 * Math.PI / 180, 92 * Math.PI / 180);
+    // Cámara viva (calculada en GameView): balanceo al caminar, inclinación, retroceso, aterrizaje y FOV
+    const cam = (fx.cam && fx.cam[me.id]) || { bobX: 0, bobY: 0, pitch: 0, eye: 0, fov: 0, yaw: 0 };
+    const hfov = clamp(2 * Math.atan(Math.tan(20 * Math.PI / 180) * W / H), 60 * Math.PI / 180, 92 * Math.PI / 180) + cam.fov;
     const proj = (W / 2) / Math.tan(hfov / 2);
-    const moving = fx.moving && fx.moving[me.id];
-    const bob = moving && me.z === 0 ? Math.sin(now / 95) * 0.025 : 0;
-    const shake = fx.shakeUntil > now ? (Math.random() - 0.5) * H * 0.04 : 0;
-    const horizon = H / 2 + shake;
-    const eye = (me.alive ? EYE : 0.25) + me.z + bob;
-    const px = me.x, py = me.y, dirX = Math.cos(me.a), dirY = Math.sin(me.a), rX = -dirY, rY = dirX;
+    const shakeAmt = (fx.shakeUntil > now ? 0.04 : 0) + (me.flash ? 0.012 : 0);
+    const shake = shakeAmt ? (Math.random() - 0.5) * H * shakeAmt : 0;
+    const horizon = H / 2 + shake + cam.pitch * H;
+    const eye = (me.alive ? EYE : 0.25) + me.z + cam.bobY + cam.eye;
+    const ang = me.a + cam.yaw;
+    const dirX = Math.cos(ang), dirY = Math.sin(ang), rX = -dirY, rY = dirX;
+    const px = me.x + rX * cam.bobX, py = me.y + rY * cam.bobX;
 
     // ── Paredes ──
     for (let x = 0; x < W; x++) {
@@ -118,7 +125,8 @@
       list.push({ x: L.x, y: L.y, z: 0, h: 5, w: 0.5, spr: A.spr.beam, bright: true, alpha: 0.7 + Math.sin(now / 150) * 0.2 });
       list.push({ x: L.x, y: L.y, z: 0.2 + Math.abs(Math.sin(now / 250)) * 0.25, h: 0.7, spr: A.spr.legend, bright: true, tag: { text: '⭐ LEGENDARIO', color: '#ffd84a', big: true } });
     }
-    const PICK_TAG = { sugar: ['🍬 AZÚCAR', '#8dff3a'], fluor: ['🧴 FLÚOR', '#3ec5ff'], crown: ['👑 CORONA', '#ffd84a'], strain: ['🧫 CEPA', '#8dff3a'] };
+    const PICK_TAG = { sugar: ['🍬 AZÚCAR', '#8dff3a'], fluor: ['🧴 FLÚOR', '#3ec5ff'], crown: ['👑 CORONA', '#ffd84a'], strain: ['🧫 CEPA', '#8dff3a'], super: ['⭐ DIENTE DE ORO', '#ffd84a'] };
+    (snap.pickups || []).forEach((k) => k.type === 'super' && list.push({ x: k.x, y: k.y, z: 0, h: 4, w: 0.4, spr: A.spr.beam, bright: true, alpha: 0.5 + Math.sin(now / 120) * 0.2 }));
     (snap.pickups || []).forEach((k) => list.push({ x: k.x, y: k.y, z: 0.15 + Math.abs(Math.sin(now / 300 + k.id)) * 0.2, h: 0.45, spr: A.spr[k.type], bright: true,
       flicker: k.t < 4, tag: { text: `${PICK_TAG[k.type][0]} ${Math.ceil(k.t)}`, color: PICK_TAG[k.type][1] } }));
     MAP.props.forEach((p) => list.push({ x: p.x, y: p.y, z: 0, h: p.h, spr: A.spr[p.kind] }));
@@ -132,10 +140,13 @@
         h *= 1 - e * 0.85; sq = 1 + e * 1.2; alpha = 1 - e;
       }
       const spr = playerSprite(A, p);
-      const icons = (p.stun > 0 ? '💫' : '') + (p.contagion > 0 ? '🧫' : '') + (p.crown ? '👑' : '') + (p.boost > 0 ? '⚡' : '');
-      list.push({ x: p.x, y: p.y, z: p.z, h, sq, alpha, spr, hit: p.flash, green: p.sticky > 0, flicker: p.immune || p.stun > 0,
-        tag: p.alive ? { text: (icons ? icons + ' ' : '') + p.name, color: TEAM_COLOR[p.team] } : null });
-      if (p.bomb) list.push({ x: p.x, y: p.y, z: p.z + h + 0.05, h: 0.38, spr: A.spr['bomb_' + p.bomb] });
+      const icons = (p.sup > 0 ? '⭐' : '') + (p.stun > 0 ? (p.stunK === 'anest' ? '💉' : '💫') : '') + (p.dizzy > 0 ? '😂' : '') + (p.slow > 0 ? '🧵' : '')
+        + (p.contagion > 0 ? '🧫' : '') + (p.crown ? '👑' : '') + (p.boost > 0 ? '⚡' : '') + (p.lv > 0 ? '⬆' + p.lv : '');
+      const star = p.sup > 0 && p.alive;
+      list.push({ x: p.x, y: p.y, z: p.z, h, sq, alpha, spr, hit: p.flash && !star, green: p.sticky > 0 || p.slow > 0, flicker: p.immune || p.stun > 0,
+        glow: star ? ['#ffd84a', '#ff6ad5', '#6af0ff', '#fff'][Math.floor(now / 70) % 4] : null,
+        tag: p.alive ? { text: (icons ? icons + ' ' : '') + p.name, color: star ? '#ffd84a' : TEAM_COLOR[p.team], big: star } : null });
+      if (p.bomb) list.push({ x: p.x, y: p.y, z: p.z + h + 0.05, h: 0.38, spr: A.spr[bombKey(p.bomb, p.bk)] });
       if (p.shield > 0 && p.alive) list.push({ x: p.x, y: p.y, z: p.z - 0.08, h: 1.25, spr: A.spr.bubble, bright: true, flicker: p.shield < 0.8 });
     });
     snap.proj.forEach((q) => {
@@ -145,8 +156,9 @@
     snap.bombs.forEach((b) => {
       if (b.st === 'held') return;
       const z = b.st === 'ground' ? 0.08 + Math.abs(Math.sin(now / 250)) * 0.18 : b.z;
-      list.push({ x: b.x, y: b.y, z, h: 0.7, spr: A.spr['bomb_' + b.type], bright: true,
-        tag: b.st === 'ground' ? { text: `💣 ${Math.ceil(b.t)}`, color: b.type === 'clean' ? TEAM_COLOR.doc : b.type === 'dirty' ? TEAM_COLOR.bac : '#ffd84a', big: true } : null });
+      const K = C.BOMB_KINDS[b.kind] || C.BOMB_KINDS.teeth;
+      list.push({ x: b.x, y: b.y, z, h: 0.7, spr: A.spr[bombKey(b.type, b.kind)], bright: true,
+        tag: b.st === 'ground' ? { text: `${K.icon} ${K.label} ${Math.ceil(b.t)}`, color: BOMB_COLOR[b.kind] || (b.type === 'clean' ? TEAM_COLOR.doc : b.type === 'dirty' ? TEAM_COLOR.bac : '#ffd84a'), big: true } : null });
     });
 
     for (const s of list) {
@@ -214,14 +226,15 @@
 
     // ── Arma en primera persona ──
     if (me.alive) {
-      const vm = TEX.viewModels[me.w];
+      const vm = TEX.viewModels[me.sup > 0 ? (me.team === 'doc' ? 'water' : 'acid') : me.w];
       if (vm) {
         const k = Math.min(H / 180, W / 190) * 1.5;
         const rec = fx.recoil && fx.recoil[me.id] ? Math.max(0, 1 - (now - fx.recoil[me.id]) / 160) : 0;
-        const wob = moving ? Math.sin(now / 95) : 0;
         const vw = vm.width * k, vh = vm.height * k;
         const lower = me.slimed > 0 ? vh * 0.35 : 0;
-        ctx.drawImage(vm, W / 2 - vw / 2 + wob * 4 * k + W * 0.12, H - vh + Math.abs(wob) * 3 * k + rec * 6 * k + lower, vw, vh);
+        // el arma se balancea con los pasos y se queda atrás al girar
+        const swayX = (cam.wobX || 0) * 5 * k - (cam.turn || 0) * 7 * k, swayY = Math.abs(cam.wobY || 0) * 4 * k + (cam.land || 0) * 6 * k;
+        ctx.drawImage(vm, W / 2 - vw / 2 + swayX + W * 0.12, H - vh + swayY + rec * 6 * k + lower, vw, vh);
         if (rec > 0.5 && (me.w === 'water' || me.w === 'acid' || me.w === 'slime')) {
           ctx.fillStyle = me.w === 'water' ? '#bff' : '#df8';
           ctx.fillRect(W / 2 + W * 0.12 - 3 * k, H - vh - 4 * k + lower, 6 * k, 6 * k);
@@ -256,7 +269,24 @@
       ctx.fillStyle = 'rgba(120,230,50,0.6)';
       for (let i = 0; i < 8; i++) ctx.fillRect((i * 47) % W, 0, 5, H * 0.05 + (i % 3) * 4);
     }
-    if (me.flash) { ctx.fillStyle = 'rgba(255,0,0,0.28)'; ctx.fillRect(0, 0, W, H); }
+    if (me.sup > 0) { // estrella: borde arcoíris dorado
+      ctx.strokeStyle = ['#ffd84a', '#ff6ad5', '#6af0ff', '#fff'][Math.floor(now / 80) % 4]; ctx.lineWidth = Math.max(3, H * 0.03);
+      ctx.strokeRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,216,74,0.1)'; ctx.fillRect(0, 0, W, H);
+    }
+    if (me.dizzy > 0) { // gas de la risa: neblina morada
+      ctx.fillStyle = `rgba(170,110,255,${(0.16 + Math.sin(now / 200) * 0.06).toFixed(3)})`; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(220,190,255,0.5)';
+      for (let i = 0; i < 7; i++) { const a = now / 700 + i * 0.9; ctx.fillRect(W / 2 + Math.cos(a) * W * 0.38, H / 2 + Math.sin(a * 1.3) * H * 0.35, 5, 5); }
+    }
+    if (me.slow > 0) { // hilo dental enredado
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { ctx.moveTo(0, H * (0.1 + i * 0.16)); ctx.lineTo(W, H * (0.25 + ((i * 37) % 60) / 100)); }
+      ctx.stroke();
+    }
+    if (me.stun > 0 && me.stunK === 'anest') { ctx.fillStyle = 'rgba(255,120,200,0.2)'; ctx.fillRect(0, 0, W, H); }
+    if (me.flash && !(me.sup > 0)) { ctx.fillStyle = 'rgba(255,0,0,0.28)'; ctx.fillRect(0, 0, W, H); }
     if (!me.alive) { ctx.fillStyle = 'rgba(90,0,0,0.5)'; ctx.fillRect(0, 0, W, H); }
     if (fx.flashUntil > now) {
       ctx.fillStyle = fx.flashColor;
@@ -267,5 +297,5 @@
     return tags;
   }
 
-  MOC.Render3D = { makeTarget, render, TEAM_COLOR, toothSprite, playerSprite };
+  MOC.Render3D = { makeTarget, render, TEAM_COLOR, toothSprite, playerSprite, bombKey, BOMB_COLOR };
 })();
