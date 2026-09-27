@@ -2,7 +2,7 @@
 // Se usan en el celular (controller.html) y en el modo prueba con pantalla táctil.
 (function () {
   const C = MOC.CONFIG;
-  const FIRE_LABEL = { none: ['✋', 'SIN ARMA'], water: ['💦', 'DISPARAR'], drill: ['🔩', 'TALADRAR'], slime: ['🟢', 'VISCOSIDAD'], acid: ['🧪', 'ÁCIDO'] };
+  const FIRE_LABEL = { none: ['✋', 'SIN ARMA'], water: ['💦', 'DISPARAR'], smg: ['🔫', 'RÁFAGA'], drill: ['🔩', 'TALADRAR'], slime: ['🟢', 'VISCOSIDAD'], acid: ['🧪', 'ÁCIDO'] };
 
   // Impide el zoom del navegador (pellizcar con 2 dedos o doble toque): con zoom ya no se puede jugar.
   // iPhone/Safari ignora "user-scalable=no", por eso se bloquea también con eventos.
@@ -27,18 +27,18 @@
   MOC.createControls = function (root, onChange) {
     lockZoom();
     root.classList.add('controls');
+    // Solo 3 botones: DISPARAR (también limpia / ensucia junto a un diente), ARMA y SALTAR.
+    // Correr = joystick al tope hacia adelante. Escudo y bombas se activan solos (solo se muestran como indicadores).
     root.innerHTML = `
       <div class="c-top"><span class="c-hp"></span><span class="c-score"></span><span class="c-time"></span><span class="c-weapon"></span></div>
-      <div class="c-zone c-move"><div class="stick"><div class="knob"></div></div><span class="c-label">MOVER</span></div>
-      <div class="c-zone c-aim"><span class="c-label">👆 DESLIZA EN CUALQUIER PARTE PARA GIRAR / APUNTAR</span></div>
+      <div class="c-badges"></div>
+      <div class="c-zone c-move"><div class="stick"><div class="knob"></div><i class="run-ring"></i></div><span class="c-label">MOVER · AL TOPE ⬆ = CORRER</span></div>
+      <div class="c-zone c-aim"><span class="c-label">👆 DESLIZA PARA GIRAR / APUNTAR</span></div>
       <div class="c-mid">
         <button class="cb cb-weapon"><span class="ic">🔄</span><small>ARMA</small></button>
         <button class="cb cb-jump"><span class="ic">⤴️</span><small>SALTAR</small></button>
-        <button class="cb cb-shield hidden"><i class="cool"></i><span class="ic">🛡️</span><small>ESCUDO</small></button>
-        <button class="cb cb-bomb hidden"><span class="ic">💣</span><small>LANZAR</small><em></em></button>
       </div>
-      <button class="cb cb-act disabled"><i class="prog"></i><span class="ic">🪥</span><small>LIMPIAR</small></button>
-      <button class="cb cb-fire"><i class="cool"></i><span class="ic">💦</span><small>DISPARAR</small></button>
+      <button class="cb cb-fire"><i class="cool"></i><i class="prog"></i><span class="ic">💦</span><small>DISPARAR</small></button>
       <div class="c-overlay hidden"></div>`;
     const q = (s) => root.querySelector(s);
     const input = { mx: 0, my: 0, tx: 0, look: 0, fire: false, act: false, jump: 0, weapon: 0, throw: 0, shield: 0 };
@@ -69,12 +69,13 @@
         knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
         let vx = (dx * k) / r, vy = (dy * k) / r;
         if (Math.hypot(vx, vy) < 0.12) { vx = 0; vy = 0; }
+        zone.classList.toggle('running', -vy > 0.9 && Math.abs(vx) < 0.45);
         onMove(vx, vy);
       };
       const release = () => {
         if (pid === null) return;
         pid = null;
-        zone.classList.remove('active');
+        zone.classList.remove('active', 'running');
         knob.style.transform = '';
         base.style.left = ''; base.style.top = '';
         onMove(0, 0);
@@ -138,11 +139,8 @@
       });
     }
     hold(q('.cb-fire'), 'fire');
-    hold(q('.cb-act'), 'act');
     tap(q('.cb-weapon'), 'weapon');
     tap(q('.cb-jump'), 'jump');
-    tap(q('.cb-bomb'), 'throw');
-    tap(q('.cb-shield'), 'shield');
     root.addEventListener('contextmenu', (e) => e.preventDefault());
 
     const cache = {};
@@ -161,34 +159,29 @@
       set('weapon', q('.c-weapon'), `${C.WEAPONS[me.weapon].icon} ${C.WEAPONS[me.weapon].label}`);
 
       const fire = q('.cb-fire'), [ic, label] = FIRE_LABEL[me.weapon];
-      set('fireIc', fire.querySelector('.ic'), ic);
-      set('fireLb', fire.querySelector('small'), me.cd > 0.5 && me.cdMax > 2 ? `${label} ${Math.ceil(me.cd)}s` : label);
-      fire.classList.toggle('disabled', me.weapon === 'none' || !me.alive || me.slimed > 0 || me.stun > 0);
-      fire.querySelector('.cool').style.height = (me.cdMax ? Math.min(100, (me.cd / me.cdMax) * 100) : 0) + '%';
-      set('wIc', q('.cb-weapon .ic'), C.WEAPONS[me.weapon].icon);
+      const race = st.race, crown = me.actKind === 'crown', acting = !race && (me.canAct || me.act > 0);
+      let fIc = ic, fLb = me.cd > 0.5 && me.cdMax > 2 ? `${label} ${Math.ceil(me.cd)}s` : label;
+      if (race) { fIc = '🦷'; fLb = '¡A LA MUELA!'; }
+      else if (acting) { fIc = crown ? '👑' : me.team === 'doc' ? '🪥' : '🦠'; fLb = crown ? 'CORONA' : me.team === 'doc' ? 'LIMPIAR' : 'ENSUCIAR'; }
+      set('fireIc', fire.querySelector('.ic'), fIc);
+      set('fireLb', fire.querySelector('small'), fLb);
+      fire.classList.toggle('acting', acting);
+      fire.classList.toggle('disabled', !me.alive || me.slimed > 0 || me.stun > 0);
+      fire.querySelector('.cool').style.height = (!acting && me.cdMax ? Math.min(100, (me.cd / me.cdMax) * 100) : 0) + '%';
+      fire.querySelector('.prog').style.width = (acting ? Math.round(me.act * 100) : 0) + '%';
+      const wb = q('.cb-weapon');
+      wb.classList.toggle('hidden', !!race || (me.weapons || []).length < 2);
+      set('wIc', wb.querySelector('.ic'), C.WEAPONS[me.weapon].icon);
+      q('.c-move').classList.toggle('sprinting', !!me.run);
 
-      const act = q('.cb-act');
-      const crown = me.actKind === 'crown';
-      set('actIc', act.querySelector('.ic'), crown ? '👑' : me.team === 'doc' ? '🪥' : '🦠');
-      set('actLb', act.querySelector('small'), crown ? 'CORONA' : me.team === 'doc' ? 'LIMPIAR' : 'ENSUCIAR');
-      act.classList.toggle('disabled', !me.canAct && !me.act);
-      act.querySelector('.prog').style.width = Math.round(me.act * 100) + '%';
-
-      const sh = q('.cb-shield');
-      sh.classList.toggle('hidden', me.team !== 'doc');
-      if (me.team === 'doc') {
-        sh.classList.toggle('active', me.shield > 0);
-        sh.classList.toggle('disabled', !(me.shield > 0) && (me.shieldCd > 0 || !me.alive || me.slimed > 0 || me.stun > 0));
-        sh.querySelector('.cool').style.height = (me.shieldCd > 0 ? Math.min(100, me.shieldCd / C.SHIELD_COOLDOWN * 100) : 0) + '%';
-        set('shLb', sh.querySelector('small'), me.shield > 0 ? `ACTIVO ${Math.ceil(me.shield)}s` : me.shieldCd > 0 ? `${Math.ceil(me.shieldCd)}s` : 'ESCUDO');
-      }
-      const bomb = q('.cb-bomb');
-      bomb.classList.toggle('hidden', !me.bomb);
-      if (me.bomb) {
-        bomb.dataset.type = me.bomb.type;
-        set('bombIc', bomb.querySelector('.ic'), me.bomb.kind && me.bomb.kind !== 'teeth' ? C.BOMB_KINDS[me.bomb.kind].icon : '💣');
-        set('bombT', bomb.querySelector('em'), Math.ceil(me.bomb.t) + 's');
-      }
+      // Indicadores (no son botones): escudo automático, bomba, protección, correr
+      const badges = [];
+      if (me.prot > 0) badges.push(`<b class="bd-prot">✨ PROTEGIDO ${Math.ceil(me.prot)}s</b>`);
+      if (me.run) badges.push('<b class="bd-run">🏃 CORRIENDO</b>');
+      if (me.team === 'doc' && !race) badges.push(me.shield > 0 ? `<b class="bd-on">🛡️ ESCUDO ${Math.ceil(me.shield)}s</b>` : me.shieldCd > 0 ? `<b>🛡️ ${Math.ceil(me.shieldCd)}s</b>` : '<b class="bd-ready">🛡️ AUTO</b>');
+      if (me.bomb) badges.push(`<b class="bd-bomb">${me.bomb.kind && me.bomb.kind !== 'teeth' ? C.BOMB_KINDS[me.bomb.kind].icon : '💣'} SE LANZA SOLA</b>`);
+      if (race) badges.push(`<b class="bd-race">🦷 ${race.doc} · ${race.bac} 🦠 / ${C.RACE.hits}</b>`);
+      set('badges', q('.c-badges'), badges.join(''));
 
       const ov = q('.c-overlay');
       let msg = '';
@@ -196,6 +189,7 @@
       else if (me.slimed > 0) msg = `🟢 ¡INMOVILIZADO!<br><b>${Math.ceil(me.slimed)}</b><small>puedes seguir girando</small>`;
       else if (me.stun > 0) msg = me.stunK === 'anest' ? `💉 ¡ANESTESIADO!<br><b>${Math.ceil(me.stun)}</b><small>te durmió una bomba de anestesia</small>` : `💫 ¡NOQUEADO!<br><b>${Math.ceil(me.stun)}</b><small>te cayó un tonsilolito</small>`;
       else if (st.st === 'countdown') msg = `<b>${Math.max(1, Math.ceil(st.cd))}</b>`;
+      else if (race && race.cd > 0) msg = `🦷 ¡DESEMPATE!<br><b>${Math.max(1, Math.ceil(race.cd))}</b><small>dispara a la muela · ${C.RACE.hits} disparos la rompen</small>`;
       ov.classList.toggle('hidden', !msg);
       ov.classList.toggle('slime', me.slimed > 0);
       set('ov', ov, msg);

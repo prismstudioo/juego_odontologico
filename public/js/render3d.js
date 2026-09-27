@@ -28,6 +28,11 @@
   const bombKey = (type, kind) => 'bomb_' + (kind && kind !== 'teeth' ? kind : type);
   const BOMB_COLOR = { anest: '#ff7ad0', gas: '#b88aff', amalgam: '#dfe4ee', floss: '#ffffff' };
 
+  // Muela gigante del desempate: se ve más limpia o más sucia según qué equipo va ganando
+  function raceSprite(A, race) {
+    return race && race.bac > race.doc ? A.spr.molar_dirty_r : A.spr.molar_clean;
+  }
+
   function playerSprite(A, p) {
     if (p.team === 'bac') return A.spr['bac_' + p.skin];
     if (p.slimed > 0) return A.spr[`doc_${p.skin}_slimed`];
@@ -120,6 +125,13 @@
         list.push({ x: st.x, y: st.y, z: Math.max(0, st.t / C.TONSIL.warn) * 4, h: 0.6, spr: A.spr.stone });
       } else list.push({ x: st.x, y: st.y, z: 0, h: 0.6, spr: A.spr.stone, alpha: Math.min(1, st.t) });
     });
+    if (snap.race) {
+      const Rc = C.RACE, rc = snap.race, lead = rc.doc === rc.bac ? null : rc.doc > rc.bac ? 'doc' : 'bac';
+      const hitNow = fx.raceFlash && now - fx.raceFlash < 90;
+      list.push({ x: Rc.x, y: Rc.y, z: 0, h: 6, w: 0.6, spr: A.spr.beam, bright: true, alpha: 0.35 + Math.sin(now / 150) * 0.15 });
+      list.push({ x: Rc.x, y: Rc.y, z: hitNow ? 0.04 : 0, h: Rc.h, spr: raceSprite(A, rc), bright: true, hit: hitNow,
+        tag: { text: `🦷 ${rc.doc}  ·  ${rc.bac} 🦠  /${Rc.hits}`, color: lead ? TEAM_COLOR[lead] : '#ffe066', big: true } });
+    }
     if (snap.legend) {
       const L = snap.legend;
       list.push({ x: L.x, y: L.y, z: 0, h: 5, w: 0.5, spr: A.spr.beam, bright: true, alpha: 0.7 + Math.sin(now / 150) * 0.2 });
@@ -140,17 +152,17 @@
         h *= 1 - e * 0.85; sq = 1 + e * 1.2; alpha = 1 - e;
       }
       const spr = playerSprite(A, p);
-      const icons = (p.sup > 0 ? '⭐' : '') + (p.stun > 0 ? (p.stunK === 'anest' ? '💉' : '💫') : '') + (p.dizzy > 0 ? '😂' : '') + (p.slow > 0 ? '🧵' : '')
+      const icons = (p.prot > 0 ? '✨' : '') + (p.run ? '🏃' : '') + (p.sup > 0 ? '⭐' : '') + (p.stun > 0 ? (p.stunK === 'anest' ? '💉' : '💫') : '') + (p.dizzy > 0 ? '😂' : '') + (p.slow > 0 ? '🧵' : '')
         + (p.contagion > 0 ? '🧫' : '') + (p.crown ? '👑' : '') + (p.boost > 0 ? '⚡' : '') + (p.lv > 0 ? '⬆' + p.lv : '');
       const star = p.sup > 0 && p.alive;
-      list.push({ x: p.x, y: p.y, z: p.z, h, sq, alpha, spr, hit: p.flash && !star, green: p.sticky > 0 || p.slow > 0, flicker: p.immune || p.stun > 0,
+      list.push({ x: p.x, y: p.y, z: p.z, h, sq, alpha, spr, hit: p.flash && !star, green: p.sticky > 0 || p.slow > 0, flicker: p.immune || p.stun > 0 || p.prot > 0,
         glow: star ? ['#ffd84a', '#ff6ad5', '#6af0ff', '#fff'][Math.floor(now / 70) % 4] : null,
         tag: p.alive ? { text: (icons ? icons + ' ' : '') + p.name, color: star ? '#ffd84a' : TEAM_COLOR[p.team], big: star } : null });
       if (p.bomb) list.push({ x: p.x, y: p.y, z: p.z + h + 0.05, h: 0.38, spr: A.spr[bombKey(p.bomb, p.bk)] });
       if (p.shield > 0 && p.alive) list.push({ x: p.x, y: p.y, z: p.z - 0.08, h: 1.25, spr: A.spr.bubble, bright: true, flicker: p.shield < 0.8 });
     });
     snap.proj.forEach((q) => {
-      const h = q.t === 'slime' ? 0.3 : q.t === 'acid' ? 0.22 : 0.18;
+      const h = q.t === 'slime' ? 0.3 : q.t === 'acid' ? 0.22 : q.t === 'smg' ? 0.1 : 0.18;
       list.push({ x: q.x, y: q.y, z: q.z - h / 2, h, spr: A.spr[q.t], bright: true });
     });
     snap.bombs.forEach((b) => {
@@ -235,8 +247,8 @@
         // el arma se balancea con los pasos y se queda atrás al girar
         const swayX = (cam.wobX || 0) * 5 * k - (cam.turn || 0) * 7 * k, swayY = Math.abs(cam.wobY || 0) * 4 * k + (cam.land || 0) * 6 * k;
         ctx.drawImage(vm, W / 2 - vw / 2 + swayX + W * 0.12, H - vh + swayY + rec * 6 * k + lower, vw, vh);
-        if (rec > 0.5 && (me.w === 'water' || me.w === 'acid' || me.w === 'slime')) {
-          ctx.fillStyle = me.w === 'water' ? '#bff' : '#df8';
+        if (rec > 0.5 && (me.w === 'water' || me.w === 'acid' || me.w === 'slime' || me.w === 'smg')) {
+          ctx.fillStyle = me.w === 'water' ? '#bff' : me.w === 'smg' ? '#ffe066' : '#df8';
           ctx.fillRect(W / 2 + W * 0.12 - 3 * k, H - vh - 4 * k + lower, 6 * k, 6 * k);
         }
       }
@@ -297,5 +309,5 @@
     return tags;
   }
 
-  MOC.Render3D = { makeTarget, render, TEAM_COLOR, toothSprite, playerSprite, bombKey, BOMB_COLOR };
+  MOC.Render3D = { makeTarget, render, TEAM_COLOR, toothSprite, playerSprite, raceSprite, bombKey, BOMB_COLOR };
 })();

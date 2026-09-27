@@ -53,6 +53,7 @@
       this.overlay.innerHTML = `
         <div class="ov-col">
           <div class="ov-top"><div class="sc sc-doc">🦷 <b>0</b></div><div class="sc-time">03:00</div><div class="sc sc-bac"><b>0</b> 🦠</div></div>
+          <div class="ov-race hidden"></div>
           <div class="ov-bombs"></div>
           <div class="ov-announce"></div>
           <div class="ov-feed"></div>
@@ -60,7 +61,7 @@
         <div class="ov-count hidden"></div>
         <div class="ov-results hidden"></div>`;
       const q = (s) => this.overlay.querySelector(s);
-      this.el = { doc: q('.sc-doc b'), bac: q('.sc-bac b'), time: q('.sc-time'), bombs: q('.ov-bombs'), announce: q('.ov-announce'), feed: q('.ov-feed'), count: q('.ov-count'), results: q('.ov-results') };
+      this.el = { doc: q('.sc-doc b'), bac: q('.sc-bac b'), time: q('.sc-time'), bombs: q('.ov-bombs'), announce: q('.ov-announce'), feed: q('.ov-feed'), count: q('.ov-count'), results: q('.ov-results'), race: q('.ov-race') };
     }
 
     setText(key, el, text, html) {
@@ -100,11 +101,14 @@
     handleEvents(events, snap) {
       const now = performance.now(), Au = MOC.Audio;
       const name = (id) => { const p = snap.players.find((q) => q.id === id); return p ? `<span class="t-${p.team}">${esc(p.name)}</span>` : '?'; };
-      const COLORS = { water: ['#bff', '#4cf', '#fff'], drill: ['#ddd', '#fd4', '#999'], slime: ['#9f4', '#5c1', '#dfa'], acid: ['#df3', '#9b1', '#ffa'] };
+      const COLORS = { smg: ['#ffe066', '#fff', '#fa3'], water: ['#bff', '#4cf', '#fff'], drill: ['#ddd', '#fd4', '#999'], slime: ['#9f4', '#5c1', '#dfa'], acid: ['#df3', '#9b1', '#ffa'] };
       for (const e of events) {
         switch (e.type) {
           case 'shot': Au.play(e.weapon); this.fx.recoil[e.id] = now; break;
-          case 'impact': this.burst(e.x, e.y, 0.5, COLORS[e.weapon] || ['#fff'], 10); if (!e.on) Au.play('impact'); break;
+          case 'impact':
+            if (e.on === 'race') { this.burst(e.x, e.y, 0.9, e.team === 'doc' ? ['#fff', '#6cf', '#bef'] : ['#8f3', '#5a1', '#cf6'], 6, 2, 0.07); this.fx.raceFlash = now; break; }
+            this.burst(e.x, e.y, 0.5, COLORS[e.weapon] || ['#fff'], 10); if (!e.on) Au.play('impact');
+            break;
           case 'hit': Au.play('hit'); break;
           case 'kill': {
             const v = snap.players.find((p) => p.id === e.id);
@@ -213,6 +217,18 @@
               this.fx.toothFlashColor[i] = clean ? '#bff' : '#9f4';
             });
             this.announce(`${clean ? '🦷 LIMPIEZA MASIVA' : '🦠 CONTAMINACIÓN MASIVA'}<small>${e.teeth.length} dientes cambiaron</small>`, 'big b-' + e.bombType, 3200);
+            break;
+          }
+          case 'raceStart':
+            Au.play('bombSpawn');
+            this.fx.flashUntil = now + 600; this.fx.flashColor = '#ffe066';
+            this.announce(`⚖️ ¡EMPATE! CARRERA DE LA MUELA<small>dispárale: ${e.hits} disparos la rompen · cada disparo le resta al rival</small>`, 'big b-neutral', 4000);
+            break;
+          case 'raceBreak': {
+            const doc = e.team === 'doc';
+            Au.play('boom'); Au.play('crown');
+            this.fx.shakeUntil = now + 900; this.fx.flashUntil = now + 1000; this.fx.flashColor = doc ? '#9df' : '#8f3';
+            this.burst(e.x, e.y, 1, doc ? ['#fff', '#6cf', '#bef', '#ffe066'] : ['#8f3', '#5a1', '#cf6', '#ffe066'], 140, 7, 0.16);
             break;
           }
           case 'count': Au.play('count'); break;
@@ -325,6 +341,7 @@
       (snap.pickups || []).forEach((q) => items.push({ y: q.y, f: () => draw(this.A.spr[q.type], q.x, q.y + 0.2, 0.8) }));
       snap.bombs.forEach((b) => { if (b.st !== 'held') items.push({ y: b.y, f: () => draw(this.A.spr[R.bombKey(b.type, b.kind)], b.x, b.y + 0.2 - (b.z || 0), 1.1) }); });
       if (snap.legend) items.push({ y: snap.legend.y, f: () => draw(this.A.spr.legend, snap.legend.x, snap.legend.y + 0.3, 1.3) });
+      if (snap.race) items.push({ y: C.RACE.y, f: () => draw(R.raceSprite(this.A, snap.race), C.RACE.x, C.RACE.y + 0.5, C.RACE.h * 1.3) });
       (snap.fungi || []).forEach((f) => items.push({ y: f.y, f: () => draw(this.A.spr.fungus, f.x, f.y + 0.3, 1.6) }));
       snap.players.forEach((p) => {
         if (!p.alive) return;
@@ -343,7 +360,7 @@
         } });
       });
       items.sort((a, b) => a.y - b.y).forEach((it) => it.f());
-      (snap.proj || []).forEach((q) => { ctx.fillStyle = q.t === 'water' ? '#6cf' : q.t === 'slime' ? '#7d2' : '#df3'; ctx.fillRect(X(q.x) - 0.15 * k, Y(q.y) - 0.15 * k, 0.3 * k, 0.3 * k); });
+      (snap.proj || []).forEach((q) => { ctx.fillStyle = q.t === 'smg' ? '#ffe066' : q.t === 'water' ? '#6cf' : q.t === 'slime' ? '#7d2' : '#df3'; ctx.fillRect(X(q.x) - 0.15 * k, Y(q.y) - 0.15 * k, 0.3 * k, 0.3 * k); });
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(r.x, r.y + r.h - head, r.w, head);
       this.outlined(ctx, '📡 CÁMARA AÉREA · EN VIVO', r.x + r.w / 2, r.y + r.h - head / 2, Math.min(13, r.w / 28), '#ffe066');
       ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 4; ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
@@ -492,6 +509,7 @@
       this.outlined(ctx, TEAM_NAME[me.team], r.x + pad + 16 * s, r.y + pad + 38 * s, 11 * s, col, 'left');
       if (me.conn === false) this.outlined(ctx, '📵 SIN CONEXIÓN', r.x + pad + 16 * s, r.y + pad + 70 * s, 11 * s, '#f66', 'left');
       const efx = [];
+      if (me.prot > 0) efx.push(`✨ PROTEGIDO ${Math.ceil(me.prot)}s`);
       if (me.sup > 0) efx.push(`⭐ INVENCIBLE ${Math.ceil(me.sup)}s`);
       if (me.lv > 0) efx.push(`⬆️ NIVEL ${me.lv}`);
       if (me.dizzy > 0) efx.push(`😂 AL REVÉS ${Math.ceil(me.dizzy)}s`);
@@ -529,6 +547,7 @@
       else if (me.stun > 0) { state = me.stunK === 'anest' ? `💉 ANESTESIADO ${Math.ceil(me.stun)}s` : `💫 NOQUEADO ${Math.ceil(me.stun)}s`; stCol = me.stunK === 'anest' ? '#ff9ad8' : '#ffe066'; }
       else if (me.sup > 0) { state = `⭐ INVENCIBLE ${Math.ceil(me.sup)}s`; stCol = '#ffd84a'; }
       else if (me.shield > 0) { state = `🛡️ ESCUDO ${Math.ceil(me.shield)}s`; stCol = '#7ef'; }
+      else if (me.run) { state = '🏃 CORRIENDO'; stCol = '#ffe066'; }
       else if (me.act > 0) { state = `${me.actKind === 'crown' ? 'CORONA' : me.team === 'doc' ? 'LIMPIANDO' : 'ENSUCIANDO'} ${Math.round(me.act * 100)}%`; stCol = col; }
       else if (me.sticky > 0) { state = `🟢 PEGAJOSO ${me.sticky}/${C.SLIME_HITS_TO_STICK}`; stCol = '#9f4'; }
       else if (me.z > 0) state = 'SALTANDO';
@@ -559,12 +578,14 @@
         ctx.fillStyle = '#000'; ctx.fillRect(cx - bw / 2 - 3, cy + 48 * s - 3, bw + 6, 18 * s + 6);
         ctx.fillStyle = col; ctx.fillRect(cx - bw / 2, cy + 48 * s, bw * me.act, 18 * s);
         this.outlined(ctx, me.actKind === 'crown' ? '👑 PONIENDO CORONA…' : me.team === 'doc' ? '🪥 LIMPIANDO…' : '🦠 ENSUCIANDO…', cx, cy + 34 * s, 12 * s, '#fff');
-      } else if (me.canAct) {
+      } else if (me.canAct && !snap.race) {
         const pulse = 0.6 + Math.sin(now / 180) * 0.4;
         ctx.globalAlpha = pulse;
-        this.outlined(ctx, me.actKind === 'crown' ? 'MANTÉN 🪥 PARA PONER 👑 CORONA' : me.team === 'doc' ? 'MANTÉN 🪥 LIMPIAR' : 'MANTÉN 🦠 ENSUCIAR', cx, cy + 56 * s, 13 * s, me.actKind === 'crown' ? '#ffd84a' : col);
+        this.outlined(ctx, me.actKind === 'crown' ? 'MANTÉN DISPARAR PARA PONER 👑 CORONA' : me.team === 'doc' ? 'MANTÉN DISPARAR PARA 🪥 LIMPIAR' : 'MANTÉN DISPARAR PARA 🦠 ENSUCIAR', cx, cy + 56 * s, 13 * s, me.actKind === 'crown' ? '#ffd84a' : col);
         ctx.globalAlpha = 1;
       }
+      if (me.alive && me.prot > 0) this.outlined(ctx, `✨ PROTEGIDO ${Math.ceil(me.prot)}s`, cx, cy - 80 * s, 14 * s, Math.floor(now / 150) % 2 ? '#fff' : '#ffe066');
+      else if (me.alive && me.run) this.outlined(ctx, '🏃 CORRIENDO', cx, cy - 80 * s, 11 * s, '#ffe066');
 
       // Minimapa
       const mh = Math.min(r.h * 0.3, r.w * 0.3), mw = mh * MAP.W / MAP.H;
@@ -585,6 +606,7 @@
         ctx.fillStyle = q.type === 'super' ? ['#ffd84a', '#ff6ad5', '#6af0ff'][Math.floor(now / 150) % 3] : { sugar: '#8dff3a', strain: '#8dff3a', fluor: '#3ec5ff', crown: '#ffd84a' }[q.type];
         ctx.fillRect(mx + (q.x - 0.5) * k, my + (q.y - 0.5) * k, k, k);
       });
+      if (snap.race) { ctx.fillStyle = Math.floor(now / 200) % 2 ? '#ffe066' : '#fff'; ctx.beginPath(); ctx.arc(mx + C.RACE.x * k, my + C.RACE.y * k, 1.8 * k, 0, 7); ctx.fill(); }
       if (snap.legend && Math.floor(now / 200) % 2) { ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(mx + snap.legend.x * k, my + snap.legend.y * k, 1.6 * k, 0, 7); ctx.fill(); }
       (snap.fungi || []).forEach((f) => {
         ctx.fillStyle = '#e07af0';
@@ -631,31 +653,56 @@
       }).join('') + snap.players.filter((p) => p.sup > 0).map((p) => `<div class="bb b-neutral">⭐ INVENCIBLE · ${esc(p.name)} <b>${Math.ceil(p.sup)}s</b></div>`).join('') + snap.players.filter((p) => p.contagion > 0).map((p) => `<div class="bb b-dirty">🧫 CONTAGIO · ${esc(p.name)} <b>${Math.ceil(p.contagion)}s</b></div>`).join('');
       this.setText('bombs', this.el.bombs, html, true);
 
+      // Carrera de desempate: barras de cada equipo hacia la muela
+      this.el.race.classList.toggle('hidden', !snap.race);
+      if (snap.race) {
+        const H = C.RACE.hits, rc = snap.race;
+        this.setText('race', this.el.race, `<div class="rc-title">⚖️ DESEMPATE · ¡ROMPE LA MUELA! (${H})</div>
+          <div class="rc-row t-doc">🦷 <i><em style="width:${rc.doc / H * 100}%"></em></i><b>${rc.doc}</b></div>
+          <div class="rc-row t-bac">🦠 <i><em style="width:${rc.bac / H * 100}%"></em></i><b>${rc.bac}</b></div>`, true);
+      }
+
       // Cuenta atrás
       let count = '';
       if (snap.st === 'countdown') count = String(Math.max(1, Math.ceil(snap.cd)));
+      else if (snap.race && snap.race.cd > 0) count = String(Math.max(1, Math.ceil(snap.race.cd)));
       else if (this.goUntil > now) count = 'GO!';
       this.el.count.classList.toggle('hidden', !count);
       this.setText('count', this.el.count, count);
 
-      // Resultados
+      // Resultados: pantalla final con el equipo ganador
       const showRes = snap.st === 'results' && snap.res;
       this.el.results.classList.toggle('hidden', !showRes);
       if (showRes) {
-        const r = snap.res;
-        const win = r.winner === 'doc' ? '<div class="win t-doc">🦷 ¡GANAN LOS ODONTÓLOGOS!</div>'
-          : r.winner === 'bac' ? '<div class="win t-bac">🦠 ¡GANAN LAS BACTERIAS!</div>' : '<div class="win">🤝 ¡EMPATE TOTAL!</div>';
-        const tb = r.tiebreak ? `<div class="tb">Empate en dientes → desempate por progreso acumulado en los dientes: 🦷 ${r.progress.doc} vs 🦠 ${r.progress.bac}</div>` : '';
-        this.setText('res', this.el.results, `<div class="res-box">
-          <h1>TIEMPO TERMINADO</h1>
-          <div class="res-line t-doc">🦷 DIENTES LIMPIOS: <b>${r.clean}</b></div>
-          <div class="res-line t-bac">🦠 DIENTES CONTAMINADOS: <b>${r.dirty}</b></div>
-          ${win}${tb}
-          ${this.onAgain ? '<button class="btn btn-big again">JUGAR OTRA VEZ</button>' : '<p class="hint">Pulsa JUGAR OTRA VEZ en la pantalla o en un celular</p>'}
-        </div>`, true);
-        const btn = this.el.results.querySelector('.again');
-        if (btn && !btn.onclick) btn.onclick = () => this.onAgain();
-      } else this.cache.res = null;
+        const r = snap.res, w = r.winner, lose = w === 'doc' ? 'bac' : 'doc';
+        const key = JSON.stringify(r); // las instantáneas llegan como objetos nuevos: comparar por contenido
+        if (this.cache.resObj !== key) {
+          this.cache.resObj = key;
+          this.el.results.className = 'ov-results win-' + w;
+          const col = w === 'doc' ? ['#3ec5ff', '#fff', '#bef', '#ffe066'] : ['#8dff3a', '#fff', '#cf6', '#ffe066'];
+          const conf = Array.from({ length: 70 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${col[i % col.length]};animation-duration:${2.2 + (i % 7) * 0.45}s;animation-delay:-${(i % 11) * 0.37}s"></i>`).join('');
+          const img = (t, sk) => `assets/${t === 'doc' ? `doc_${sk}_armed` : `bac_${sk}`}.png`;
+          const winners = (r.players || []).filter((p) => p.team === w);
+          const heroes = (winners.length ? winners : [{ skin: 'alan' }, { skin: 'karina' }]).slice(0, 5).map((p) => `<img src="${img(w, p.skin || 'alan')}" alt="">`).join('');
+          const rows = (r.players || []).slice(0, 8).map((p) => `<tr class="${p.id === r.mvp ? 'mvp' : ''}"><td class="t-${p.team}">${p.id === r.mvp ? '⭐ ' : ''}${esc(p.name)}</td><td>${p.kills}</td><td>${p.teeth}</td>${r.race ? `<td>${p.race}</td>` : ''}</tr>`).join('');
+          const n = { doc: r.clean, bac: r.dirty };
+          this.el.results.innerHTML = `<div class="confetti">${conf}</div><div class="final t-${w}">
+            <div class="f-tag">${r.race ? '⚖️ DESEMPATE DE LA MUELA' : '⏱️ TIEMPO TERMINADO'}</div>
+            <div class="f-trophy">🏆</div>
+            <h1>${w === 'doc' ? '¡GANAN LOS<br>ODONTÓLOGOS!' : '¡GANAN LAS<br>BACTERIAS!'}</h1>
+            <div class="f-heroes">${heroes}</div>
+            <div class="f-bars">
+              <div class="f-bar t-doc ${lose === 'doc' ? 'lose' : ''}">🦷 DIENTES LIMPIOS<b>${n.doc}</b></div>
+              <div class="f-bar t-bac ${lose === 'bac' ? 'lose' : ''}">🦠 CONTAMINADOS<b>${n.bac}</b></div>
+            </div>
+            ${r.race ? `<div class="f-race">Empataron en dientes → la muela: 🦷 ${r.race.doc} vs ${r.race.bac} 🦠${r.race.timeout ? ' (se acabó el tiempo)' : ' · ¡ROTA!'}</div>` : ''}
+            ${rows ? `<table class="f-table"><tr><th>JUGADOR</th><th>💀 BAJAS</th><th>🦷 DIENTES</th>${r.race ? '<th>🎯 MUELA</th>' : ''}</tr>${rows}</table>` : ''}
+            ${this.onAgain ? '<button class="btn btn-big again">JUGAR OTRA VEZ</button>' : ''}
+          </div>`;
+          const btn = this.el.results.querySelector('.again');
+          if (btn) btn.onclick = () => this.onAgain();
+        }
+      } else this.cache.resObj = null;
     }
   }
 

@@ -26,9 +26,24 @@ Modos 1 vs 1, 2 vs 2, 5 vs 5 y 7 vs 7 (hasta 14 jugadores). Faltan jugadores →
    (El plan gratis "duerme": la primera carga puede tardar ~1 minuto.)
 
 ## Controles del celular
-Joystick izquierdo = moverse · Deslizar el dedo en cualquier otra parte = girar/apuntar · 📺 VER MI CÁMARA muestra tu vista en el celular · DISPARAR · LIMPIAR/ENSUCIAR (mantener 3 s cerca de un diente) · ARMA (odontólogos: sin arma ↔ pistola, cambia la imagen; bacterias: viscosidad ↔ ácido) · SALTAR · 🛡️ ESCUDO (solo odontólogos) · 💣 LANZAR (aparece al tener una bomba).
+Solo 3 botones para no tapar la pantalla:
+- **Joystick izquierdo** = moverse · **empujarlo al tope hacia adelante = CORRER** 🏃
+- **Deslizar el dedo** en cualquier otra parte = girar/apuntar
+- **DISPARAR**: dispara; junto a un diente **limpia / ensucia** (o pone la 👑 corona) con el mismo botón
+- **ARMA**: odontólogos 💦 pistola ↔ 🔫 metralleta · bacterias 🟢 viscosidad ↔ 🧪 ácido ↔ 🔫 metralleta
+- **SALTAR**
+- Automático (sin botones): 🛡️ el escudo se activa solo cuando te lanzan viscosidad; 💣 las bombas se lanzan solas (la dental al agarrarla, las de efecto hacia el rival más cercano).
+- 📺 VER MI CÁMARA muestra tu vista en el celular.
 
-Modo prueba con teclado: WASD mover, mouse / ← → girar, clic o J disparar, E limpiar/ensuciar, Q arma, Espacio saltar, F bomba, V ver todas las cámaras, M sonido.
+Los celulares (QR) **no pueden iniciar la partida**: solo la pantalla principal inicia y vuelve a jugar. En la sala cada jugador elige su personaje dentro de su equipo.
+
+Modo prueba con teclado: WASD mover, Shift+W correr, mouse / ← → girar, clic o J disparar (junto a un diente limpia/ensucia), Q arma, Espacio saltar, V ver todas las cámaras, M sonido.
+
+## Reglas nuevas
+- ✨ **Protección al reaparecer**: 3 s sin recibir daño ni viscosidad.
+- 👥 **Jugar así o rellenar con bots**: si la sala no está llena, la pantalla puede iniciar con los que hay (mínimo 1 por equipo) o rellenar con bots. Nunca se inicia solo con bots.
+- ⚖️ **Desempate (8 vs 8 dientes)**: aparece una muela gigante en el centro. Todos con la misma metralleta y la misma velocidad. Cada disparo suma 1 a tu equipo y le resta 1 al rival; el primero en llegar a **35** la rompe y gana (si pasan 60 s, gana quien lleve más).
+- 🏆 Pantalla final con el equipo ganador, tabla de jugadores y MVP.
 
 ## Mecánicas del mapa (sin botones extra)
 - 🛡️ **Escudo (odontólogos)**: botón ESCUDO (tecla R en solitario). 4 s inmune a la viscosidad; mientras está activo no puedes disparar. Recarga 7 s desde que se acaba.

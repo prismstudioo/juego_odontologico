@@ -125,6 +125,7 @@
     water: blob(8, 10, ['#e8fbff', '#58c8ff', '#1c7fd6']),
     slime: blob(12, 10, ['#e2ff9a', '#7dde2a', '#3f8f10']),
     acid: blob(9, 9, ['#fffbb0', '#d8f03a', '#7a9a10']),
+    smg: blob(6, 6, ['#ffffff', '#ffe066', '#e08a10']),
     popcorn: pixCanvas(16, 14, (g, px) => {
       [[5, 6, 4], [10, 5, 4], [8, 9, 5], [4, 10, 3], [12, 10, 3]].forEach(([cx, cy, r]) => {
         for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r) px(cx + x, cy + y, x + y < -1 ? '#fffbe8' : x + y > 2 ? '#d8c088' : '#f4e6b8');
@@ -256,6 +257,13 @@
         if (d < 1) px(x, y, x < 28 && y < 10 ? '#e2ff9a' : d > 0.8 ? '#3f8f10' : '#7dde2a');
         else if (arm) px(x, y, (x + y) % 6 === 0 ? '#5a3a8a' : '#8a60c8');
       }
+    }),
+    smg: pixCanvas(64, 50, (g, px) => { // metralleta de juguete (jeringa múltiple)
+      px(29, 0, '#2a2a30', 6, 6); px(30, 0, '#6a6a78', 2, 6);
+      px(25, 6, '#3a3a44', 14, 22); px(26, 6, '#8a8a9a', 3, 22); px(36, 6, '#1a1a20', 3, 22);
+      px(25, 12, '#ffe066', 14, 2); px(25, 20, '#ffe066', 14, 2);
+      px(38, 18, '#2a2a30', 8, 5); px(22, 26, '#2a2a30', 20, 6);
+      px(20, 32, '#d69868', 24, 18); px(20, 32, '#e8b080', 24, 3); px(18, 38, '#c68858', 4, 12); px(42, 36, '#c68858', 4, 14);
     }),
     acid: pixCanvas(60, 50, (g, px) => { // frasco de ácido
       px(27, 0, '#8a6a4a', 6, 4); px(28, 4, '#cfe', 4, 8);

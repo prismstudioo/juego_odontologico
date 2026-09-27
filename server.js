@@ -36,6 +36,7 @@ function sendLobby() {
 io.on('connection', (socket) => {
   // ── Pantalla principal (proyector) ──
   socket.on('screen:hello', () => {
+    socket.data.screen = true;
     socket.join('screens');
     socket.emit('lobby', game.lobbyInfo());
   });
@@ -52,9 +53,9 @@ io.on('connection', (socket) => {
     sendLobby();
   });
 
-  // Cualquiera (pantalla o jugador) puede iniciar / volver a jugar
-  socket.on('start', () => { if (game.start()) sendLobby(); });
-  socket.on('again', () => { game.backToLobby(); sendLobby(); });
+  // Solo la pantalla principal puede iniciar / volver a jugar (los celulares que entran por QR no)
+  socket.on('start', () => { if (socket.data.screen && game.start()) sendLobby(); });
+  socket.on('again', () => { if (socket.data.screen) { game.backToLobby(); sendLobby(); } });
 
   // ── Jugadores (celulares) ──
   socket.on('player:join', (data, ack) => {
@@ -85,6 +86,7 @@ io.on('connection', (socket) => {
 
   socket.on('player:view', (on) => { if (on) socket.join('phones'); else socket.leave('phones'); });
   socket.on('player:team', (team) => { if (socket.data.pid) game.setTeam(socket.data.pid, team); });
+  socket.on('player:skin', (skin) => { if (socket.data.pid) game.setSkin(socket.data.pid, skin); });
 
   socket.on('player:leave', () => {
     const id = socket.data.pid;

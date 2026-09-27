@@ -60,7 +60,7 @@
     const S = MOC.TEX.sprites;
     for (const key of ['popcorn', 'chip', 'broccoli', 'puddle', 'fungus', 'stone']) A.spr[key] = variants(S[key]);
     for (const key of ['shadow', 'sugar', 'fluor', 'crown', 'strain', 'super', 'bubble', 'legend', 'beam']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
-    for (const key of ['water', 'slime', 'acid']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
+    for (const key of ['water', 'slime', 'acid', 'smg']) A.spr[key] = { w: S[key].width, h: S[key].height, lv: [S[key], S[key], S[key], S[key]], hit: S[key] };
     return A;
   };
 })();

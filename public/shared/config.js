@@ -9,6 +9,9 @@
     TOOTH_ACTION_TIME: 3,        // segundos para limpiar / ensuciar
     BACTERIA_RESPAWN_TIME: 4,
     DOCTOR_RESPAWN_TIME: 5,
+    SPAWN_PROTECTION: 3,         // segundos de protección al reaparecer (no recibe daño ni viscosidad)
+    SPRINT_SPEED: 1.45,          // joystick empujado al tope hacia adelante = correr
+    SPRINT_THRESHOLD: 0.9,
     SLIME_IMMOBILIZE_TIME: 8,
     SLIME_IMMUNITY_TIME: 4,      // tras quitarse la viscosidad no puede volver a ser inmovilizado (evita cadenas infinitas)
     SLIME_COOLDOWN: 5,
@@ -63,10 +66,17 @@
       water: { team: 'doc', label: 'PISTOLA DE AGUA', icon: '💦', kind: 'projectile', speed: 11.5, damage: 45, cooldown: 0.55, range: 13, radius: 0.22 },
       drill: { team: 'doc', label: 'TALADRO DENTAL', icon: '🔩', kind: 'melee', range: 1.9, arcDeg: 70, damage: 100, cooldown: 1.1 },
       slime: { team: 'bac', label: 'VISCOSIDAD', icon: '🟢', kind: 'projectile', speed: 9.5, range: 12, radius: 0.3 },
+      smg:   { team: 'all', label: 'METRALLETA', icon: '🔫', kind: 'projectile', speed: 17, damage: 9, cooldown: 0.12, range: 12, radius: 0.14, spread: 0.07 },
       acid:  { team: 'bac', label: 'ÁCIDO', icon: '🧪', kind: 'projectile', speed: 10, damage: 34, cooldown: 0.9, range: 11, radius: 0.24,
                puddleRadius: 0.9, puddleTime: 3, puddleDps: 12 },
     },
-    TEAM_WEAPONS: { doc: ['none', 'water'], bac: ['slime', 'acid'] }, // el taladro se quitó (casi no tenía uso)
+    // el botón DISPARAR también limpia / ensucia junto a un diente, por eso ya no hace falta "sin arma"
+    TEAM_WEAPONS: { doc: ['water', 'smg'], bac: ['slime', 'acid', 'smg'] },
+    // Habilidades automáticas (sin botones extra)
+    AUTO: { shieldDist: 3, bombTeethDelay: 1.2, bombRange: 7 },
+    // Desempate: si terminan con los mismos dientes, carrera para romper la muela gigante del centro.
+    // Cada disparo suma 1 a tu equipo y le resta 1 al rival. Gana el primero en llegar a HITS.
+    RACE: { hits: 35, countdown: 3, time: 60, x: 22, y: 14.5, radius: 0.9, h: 1.9, weapon: 'smg', speed: 3.3 },
 
     BOMB_THROW_SPEED: 8,
 

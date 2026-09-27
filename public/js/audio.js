@@ -53,6 +53,7 @@
     water: () => { noise(0.18, { freq: 2500, to: 900, q: 2, vol: 0.18 }); tone(700, 0.08, { type: 'sine', vol: 0.08, to: 1400 }); },
     drill: () => { tone(180, 0.35, { type: 'sawtooth', vol: 0.1, to: 260 }); noise(0.3, { freq: 3000, q: 4, vol: 0.08 }); },
     slime: () => { tone(160, 0.35, { type: 'sine', vol: 0.25, to: 60 }); noise(0.3, { freq: 300, to: 120, q: 3, vol: 0.2 }); },
+    smg: () => { noise(0.05, { freq: 1800, q: 1, vol: 0.12 }); tone(160, 0.04, { type: 'square', vol: 0.05, to: 90 }); },
     acid: () => { noise(0.3, { freq: 5000, to: 2000, type: 'highpass', vol: 0.12 }); tone(400, 0.12, { type: 'triangle', vol: 0.08, to: 200 }); },
     impact: () => noise(0.12, { freq: 900, q: 1, vol: 0.12 }),
     hit: () => { tone(220, 0.12, { type: 'square', vol: 0.12, to: 110 }); },

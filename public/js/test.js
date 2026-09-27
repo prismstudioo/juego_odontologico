@@ -66,7 +66,8 @@
   function humanInput() {
     const k = (n) => (keys[n] ? 1 : 0);
     const inp = {
-      mx: k('d') - k('a'), my: k('s') - k('w'), tx: k('arrowright') - k('arrowleft'),
+      // W camina; Shift + W corre (en el celular: joystick al tope)
+      mx: k('d') - k('a'), my: k('s') - k('w') * (keys.shift ? 1 : 0.85), tx: k('arrowright') - k('arrowleft'),
       fire: mouseDown || !!keys.j, act: !!keys.e, look: mouseDX * 0.0028,
       jump: counters.jump, weapon: counters.weapon, throw: counters.throw, shield: counters.shield,
     };

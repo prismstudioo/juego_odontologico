@@ -66,10 +66,20 @@
       $(team === 'doc' ? 'slotsDoc' : 'slotsBac').innerHTML = html;
       document.querySelector('.teams').classList.toggle('many', info.slots[team] > 2);
     });
+    // Si faltan jugadores se puede "jugar así" o rellenar con bots (nunca solo con bots)
+    const inTeams = info.players.filter((p) => p.team).length, humans = info.players.filter((p) => p.team && !p.bot).length;
+    const hasBots = info.players.some((p) => p.bot);
     $('startBtn').disabled = !info.canStart;
-    $('botsBtn').textContent = info.players.some((p) => p.bot) ? '❌ QUITAR BOTS' : '🤖 RELLENAR CON BOTS';
+    $('startBtn').textContent = info.full ? '[ INICIAR PARTIDA ]' : `[ ▶ JUGAR ASÍ ${inTeams}/${info.mode} ]`;
+    $('botsBtn').textContent = hasBots ? '❌ QUITAR BOTS' : '🤖 RELLENAR CON BOTS';
+    $('botsBtn').classList.toggle('hidden', !hasBots && (info.full || !humans));
     const waiting = info.players.filter((p) => !p.team).length;
-    $('lobbyMsg').textContent = info.canStart ? '¡TODO LISTO! PULSA INICIAR PARTIDA' : `Faltan jugadores (${info.players.filter((p) => p.team).length}/${info.mode})` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
+    let msg;
+    if (!humans) msg = `Esperando jugadores reales… (escanea el QR)` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
+    else if (!info.canStart) msg = 'Cada equipo necesita al menos 1 jugador · o pulsa RELLENAR CON BOTS';
+    else if (info.full) msg = '¡TODO LISTO! PULSA INICIAR PARTIDA';
+    else msg = `Faltan ${info.mode - inTeams} jugadores: JUGAR ASÍ o RELLENAR CON BOTS` + (waiting ? ` · ${waiting} eligiendo equipo` : '');
+    $('lobbyMsg').textContent = msg;
     if (info.state === 'lobby') { snaps.clear(); show(modeChosen ? 'lobby' : 'modeSelect'); }
     else show('game');
   });

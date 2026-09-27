@@ -61,7 +61,8 @@
         isBot: !!info.isBot, connected: true,
         x: 0, y: 0, a: 0, z: 0, vz: 0, hp: 100, maxHp: 100, alive: true,
         deadT: 0, slimedT: 0, immuneT: 0, weaponIdx: 0, cds: {}, flashT: 0, stunT: 0, sticky: 0, stickyT: 0, boostT: 0, crown: false, contagionT: 0, contagionTick: 0, contagionLeft: 0,
-        superT: 0, dizzyT: 0, slowT: 0, streak: 0, stunKind: null,
+        superT: 0, dizzyT: 0, slowT: 0, streak: 0, stunKind: null, spawnT: 0, sprint: false,
+        stats: { kills: 0, deaths: 0, teeth: 0, race: 0 },
         input: emptyInput(), seen: { jump: 0, weapon: 0, throw: 0, shield: 0 }, shieldT: 0, shieldCd: 0,
         action: null, bomb: null, bot: null,
       };
@@ -99,6 +100,15 @@
       return true;
     }
 
+    // Cada jugador elige su personaje (skin) dentro de su equipo
+    setSkin(id, skin) {
+      const p = this.players.get(id);
+      if (!p || !p.team || this.state !== 'lobby' || !SKINS.includes(skin)) return false;
+      p.skin = skin;
+      this.lobbyVersion++;
+      return true;
+    }
+
     // Rellena los lugares libres con bots (modo solitario o si faltan jugadores)
     fillBots() {
       if (this.state !== 'lobby') return;
@@ -117,13 +127,19 @@
 
     humanCount() { return [...this.players.values()].filter((p) => !p.isBot).length; }
 
+    // Se puede jugar con los equipos incompletos ("jugar así"), pero nunca solo con bots
+    // y cada equipo necesita al menos un jugador.
     canStart() {
-      return this.state === 'lobby' && TEAMS.every((t) => this.teamMembers(t).length === this.slots(t));
+      if (this.state !== 'lobby') return false;
+      const humans = [...this.players.values()].filter((p) => p.team && !p.isBot).length;
+      return humans > 0 && TEAMS.every((t) => this.teamMembers(t).length > 0);
     }
+
+    isFull() { return TEAMS.every((t) => this.teamMembers(t).length >= this.slots(t)); }
 
     lobbyInfo() {
       return {
-        mode: this.mode, state: this.state, slots: { ...C.MODES[this.mode] }, canStart: this.canStart(),
+        mode: this.mode, state: this.state, slots: { ...C.MODES[this.mode] }, canStart: this.canStart(), full: this.isFull(), skins: SKINS,
         players: [...this.players.values()].map((p) => ({ id: p.id, name: p.name, team: p.team, skin: p.skin, connected: p.connected, bot: p.isBot })),
       };
     }
@@ -147,6 +163,7 @@
       this.countdown = C.COUNTDOWN;
       this.teamProgress = { doc: 0, bac: 0 };
       this.result = null;
+      this.race = null;
       this.uid = 1;
       // 2 bombas por equipo, en momentos aleatorios repartidos por la partida
       // bombas de distintos tipos (una de cada una, en orden aleatorio)
@@ -167,8 +184,11 @@
         p.spawn = MAP.spawns[p.team][idx[p.team]++ % MAP.spawns[p.team].length];
         p.streak = 0;
         this.respawn(p);
-        p.weaponIdx = p.team === 'doc' ? 1 : 0; // odontólogos empiezan con la pistola, bacterias con viscosidad
+        p.spawnT = 0; // al inicio ya protege la cuenta atrás
+        p.weaponIdx = 0; // odontólogos empiezan con la pistola, bacterias con viscosidad
         p.cds = {};
+        p.bomb = null; p.crown = false; p.contagionT = 0;
+        p.stats = { kills: 0, deaths: 0, teeth: 0, race: 0 };
         p.bot = null;
       });
       this.state = 'countdown';
@@ -211,18 +231,23 @@
       p.alive = true; p.deadT = 0; p.slimedT = 0; p.immuneT = 0; p.action = null; p.flashT = 0;
       p.stunT = 0; p.sticky = 0; p.stickyT = 0; p.boostT = 0; p.contagionT = 0; p.shieldT = 0;
       p.superT = 0; p.dizzyT = 0; p.slowT = 0;
+      p.spawnT = C.SPAWN_PROTECTION; // protección al reaparecer
       p.maxHp += (p.streak || 0) * C.STREAK.hp; p.hp = p.maxHp;
     }
 
     // Tiempo de recarga del arma con las mejoras de la racha y la estrella
     cooldownOf(p, w) {
       let cd = w === 'slime' ? C.SLIME_COOLDOWN : C.WEAPONS[w].cooldown || 0;
+      if (this.race) return cd; // en la carrera todos disparan igual de rápido
       cd *= Math.max(0.4, 1 - (p.streak || 0) * C.STREAK.cooldown);
       if (p.superT > 0) cd *= C.SUPER.cooldown;
       return cd;
     }
 
-    weaponOf(p) { return C.TEAM_WEAPONS[p.team][p.weaponIdx % C.TEAM_WEAPONS[p.team].length]; }
+    weaponOf(p) {
+      if (this.race) return C.RACE.weapon;
+      return C.TEAM_WEAPONS[p.team][p.weaponIdx % C.TEAM_WEAPONS[p.team].length];
+    }
 
     update(dt) {
       if (this.state === 'countdown') {
@@ -233,6 +258,7 @@
         return;
       }
       if (this.state !== 'playing') return;
+      if (this.race) return this.updateRace(dt);
 
       this.timeLeft -= dt;
       const elapsed = C.GAME_DURATION - this.timeLeft;
@@ -252,18 +278,81 @@
     finish() {
       this.timeLeft = 0;
       const clean = this.teeth.filter((t) => t.state === 'clean').length, dirty = 16 - clean;
-      let winner = clean > dirty ? 'doc' : dirty > clean ? 'bac' : null, tiebreak = false;
-      if (!winner) {
-        tiebreak = true;
-        const d = this.teamProgress.doc, b = this.teamProgress.bac;
-        winner = d > b ? 'doc' : b > d ? 'bac' : 'tie';
-      }
-      this.result = { clean, dirty, winner, tiebreak, progress: { doc: Math.round(this.teamProgress.doc * 10) / 10, bac: Math.round(this.teamProgress.bac * 10) / 10 } };
+      if (clean === dirty) return this.startRace(); // empate: carrera para romper la muela
+      this.endMatch(clean > dirty ? 'doc' : 'bac');
+    }
+
+    endMatch(winner, race) {
+      const clean = this.teeth.filter((t) => t.state === 'clean').length, dirty = 16 - clean;
+      const players = [...this.players.values()].filter((p) => p.team).map((p) => ({
+        id: p.id, name: p.name, team: p.team, skin: p.skin, bot: p.isBot, ...p.stats,
+        score: p.stats.kills * 2 + p.stats.teeth * 3 + p.stats.race * 0.3 - p.stats.deaths * 0.5,
+      })).sort((a, b) => b.score - a.score);
+      const mvp = players.find((p) => p.team === winner) || null;
+      this.result = {
+        clean, dirty, winner, tiebreak: !!race, race: race || null, players, mvp: mvp ? mvp.id : null,
+        progress: { doc: Math.round(this.teamProgress.doc * 10) / 10, bac: Math.round(this.teamProgress.bac * 10) / 10 },
+      };
+      this.race = null;
       this.state = 'results';
       this.projectiles = []; this.zones = []; this.fungi = []; this.stones = []; this.pickups = [];
       this.players.forEach((p) => { p.action = null; });
       this.emit({ type: 'end', result: this.result });
       this.lobbyVersion++;
+    }
+
+    // ───────────── Desempate: carrera para romper la muela ─────────────
+    startRace() {
+      const R = C.RACE;
+      this.race = { doc: 0, bac: 0, cd: R.countdown, lastCount: R.countdown + 1 };
+      this.timeLeft = R.time;
+      this.bombs = []; this.projectiles = []; this.zones = []; this.fungi = []; this.stones = []; this.pickups = [];
+      this.mazeOpen = false; this.legend = null; MAP.setMazeOpen(false); this.blocked = null;
+      const idx = { doc: 0, bac: 0 };
+      this.players.forEach((p) => {
+        if (!p.team) return;
+        const i = idx[p.team]++, side = p.team === 'doc' ? -1 : 1;
+        // en fila a cada lado de la muela, todos a la misma distancia
+        const row = [0, -1, 1, -2, 2, -3, 3][i % 7];
+        p.spawn = { x: R.x + side * 7, y: R.y + row * 0.9, a: side < 0 ? 0 : Math.PI };
+        p.streak = 0;
+        this.respawn(p);
+        p.spawnT = 0; p.bomb = null; p.crown = false; p.contagionT = 0; p.cds = {}; p.bot = null;
+      });
+      this.emit({ type: 'raceStart', hits: R.hits });
+      this.lobbyVersion++;
+    }
+
+    updateRace(dt) {
+      const race = this.race;
+      if (race.cd > 0) {
+        race.cd -= dt;
+        const n = Math.ceil(race.cd);
+        if (n < race.lastCount && n > 0) { race.lastCount = n; this.emit({ type: 'count', n }); }
+        if (race.cd <= 0) this.emit({ type: 'go' });
+      } else this.timeLeft -= dt;
+      this.players.forEach((p) => { if (p.team) { if (p.isBot) this.botThink(p, dt); this.updatePlayer(p, dt); } });
+      this.updateProjectiles(dt);
+      if (this.race && this.timeLeft <= 0) {
+        // se acabó el tiempo de la carrera: gana quien lleve más (y si siguen empatados, quien trabajó más los dientes)
+        const d = race.doc, b = race.bac;
+        const winner = d > b ? 'doc' : b > d ? 'bac' : this.teamProgress.doc >= this.teamProgress.bac ? 'doc' : 'bac';
+        this.timeLeft = 0;
+        this.endMatch(winner, { doc: d, bac: b, timeout: true });
+      }
+    }
+
+    // Un disparo a la muela: suma 1 a tu equipo y le resta 1 al rival
+    raceHit(pr) {
+      const race = this.race, team = pr.team, other = team === 'doc' ? 'bac' : 'doc';
+      race[team] = Math.min(C.RACE.hits, race[team] + 1);
+      race[other] = Math.max(0, race[other] - 1);
+      const shooter = this.players.get(pr.owner);
+      if (shooter) shooter.stats.race++;
+      if (race[team] >= C.RACE.hits) {
+        this.emit({ type: 'raceBreak', team, id: pr.owner, x: C.RACE.x, y: C.RACE.y });
+        this.endMatch(team, { doc: race.doc, bac: race.bac });
+      }
     }
 
     // ───────────── Jugadores ─────────────
@@ -292,7 +381,8 @@
       if (p.stunT <= 0) p.stunKind = null;
       if (p.shieldT > 0) { p.shieldT -= dt; if (p.shieldT <= 0) { p.shieldT = 0; p.shieldCd = C.SHIELD_COOLDOWN; } }
       else if (p.shieldCd > 0) p.shieldCd = Math.max(0, p.shieldCd - dt);
-      const stuck = p.slimedT > 0 || p.stunT > 0;
+      if (p.spawnT > 0) p.spawnT = Math.max(0, p.spawnT - dt);
+      const stuck = p.slimedT > 0 || p.stunT > 0 || (this.race && this.race.cd > 0);
 
       // Girar: siempre permitido (aunque esté inmovilizado puede seguir viendo)
       const inv = p.dizzyT > 0 ? -1 : 1; // gas de la risa: controles al revés
@@ -300,17 +390,16 @@
       inp.look = 0;
 
       // Botones de un solo toque (contadores)
-      if (inp.weapon !== p.seen.weapon && !stuck) {
+      if (inp.weapon !== p.seen.weapon && !stuck && !this.race) {
         p.weaponIdx = (p.weaponIdx + 1) % C.TEAM_WEAPONS[p.team].length;
         this.emit({ type: 'weapon', id: p.id, weapon: this.weaponOf(p) });
       }
       if (inp.jump !== p.seen.jump && !stuck && p.z <= 0) { p.vz = C.JUMP_VELOCITY; this.emit({ type: 'jump', id: p.id }); }
       if (inp.throw !== p.seen.throw && !stuck && p.bomb) this.throwBomb(p);
-      if (inp.shield !== p.seen.shield && !stuck && p.team === 'doc' && p.shieldT <= 0 && p.shieldCd <= 0) {
-        p.shieldT = C.SHIELD_TIME;
-        this.emit({ type: 'shield', id: p.id });
-      }
+      if (inp.shield !== p.seen.shield && !stuck) this.activateShield(p);
       this.syncCounters(p);
+      // Habilidades automáticas: el escudo y las bombas se activan solos (sin botones extra)
+      if (!stuck && !this.race) this.autoAbilities(p);
 
       // Salto
       if (p.z > 0 || p.vz > 0) {
@@ -323,19 +412,24 @@
         let fwd = -inp.my * inv, str = inp.mx * inv;
         const mag = Math.hypot(fwd, str);
         if (mag > 1) { fwd /= mag; str /= mag; }
+        // Correr: joystick empujado al tope hacia adelante
+        p.sprint = fwd > C.SPRINT_THRESHOLD && Math.abs(str) < 0.45 && !p.action;
         if (mag > 0.08) {
           const sp = this.speedOf(p);
           const ca = Math.cos(p.a), sa = Math.sin(p.a);
           this.moveCircle(p, (ca * fwd - sa * str) * sp * dt, (sa * fwd + ca * str) * sp * dt);
         }
-      }
+      } else p.sprint = false;
+
+      // Limpiar / ensuciar: el mismo botón de DISPARAR sirve junto a un diente
+      const acting = (inp.act || inp.fire) && !stuck && !this.race && !!this.actionInfo(p);
+      this.updateAction(p, dt, acting);
 
       // Disparo
       if (p.superT > 0 && !stuck) this.tryFire(p, p.team === 'doc' ? 'water' : 'acid'); // estrella: disparo automático
-      else if (inp.fire && !stuck && !(p.shieldT > 0)) this.tryFire(p); // con escudo no se puede disparar
+      else if (inp.fire && !stuck && !acting) this.tryFire(p);
 
-      // Limpiar / ensuciar
-      this.updateAction(p, dt, inp.act && !stuck);
+      if (this.race) return; // en la carrera no hay objetos
 
       // Recoger bomba
       if (!p.bomb) {
@@ -359,8 +453,43 @@
       }
     }
 
+    activateShield(p) {
+      if (p.team !== 'doc' || p.shieldT > 0 || p.shieldCd > 0) return;
+      p.shieldT = C.SHIELD_TIME;
+      this.emit({ type: 'shield', id: p.id });
+    }
+
+    // Escudo: se activa solo cuando una viscosidad enemiga viene directo hacia ti.
+    // Bombas: la dental se lanza sola al rato de agarrarla; las de efecto, hacia el rival visible más cercano.
+    autoAbilities(p) {
+      const A = C.AUTO;
+      if (p.team === 'doc' && p.shieldT <= 0 && p.shieldCd <= 0 && p.slimedT <= 0 && p.immuneT <= 0 && p.spawnT <= 0) {
+        const incoming = this.projectiles.some((q) => {
+          if (q.type !== 'slime' || q.team === p.team) return false;
+          const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+          return d < A.shieldDist && (dx * q.vx + dy * q.vy) / (d * Math.hypot(q.vx, q.vy) || 1) > 0.8;
+        });
+        if (incoming) this.activateShield(p);
+      }
+      if (!p.bomb) return;
+      const b = this.bombs.find((q) => q.id === p.bomb);
+      if (!b) return;
+      const held = C.BOMB_HOLD_TIME - b.t;
+      if (!b.kind || b.kind === 'teeth') { if (held >= A.bombTeethDelay) this.throwBomb(p); return; }
+      let tgt = null, td = A.bombRange;
+      this.players.forEach((e) => {
+        if (!e.team || e.team === p.team || !e.alive) return;
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d > 1.2 && d < td && lineOfSight(p.x, p.y, e.x, e.y)) { td = d; tgt = e; }
+      });
+      if (tgt && held > 0.4) this.throwBomb(p, Math.atan2(tgt.y - p.y, tgt.x - p.x), td);
+      else if (b.t < 2) this.throwBomb(p);
+    }
+
     speedOf(p) {
+      if (this.race) return C.RACE.speed * (p.sprint ? C.SPRINT_SPEED : 1); // carrera: todos igual de rápidos
       let sp = p.team === 'doc' ? C.DOCTOR_SPEED : C.BACTERIA_SPEED;
+      if (p.sprint) sp *= C.SPRINT_SPEED;
       if (p.action) sp *= 0.6;
       if (p.sticky) sp *= C.STICKY_SPEED;
       if (p.boostT > 0) sp *= C.BOOST.speed;
@@ -385,6 +514,7 @@
           if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return true;
         }
       for (const t of this.teeth) if ((x - t.x) ** 2 + (y - t.y) ** 2 < (t.r + r) ** 2) return true;
+      if (this.race && (x - C.RACE.x) ** 2 + (y - C.RACE.y) ** 2 < (C.RACE.radius + r) ** 2) return true;
       if (z < C.FOOD_JUMP_HEIGHT) for (const f of MAP.props) if ((x - f.x) ** 2 + (y - f.y) ** 2 < (f.r + r) ** 2) return true;
       const rr = (C.TONSIL.rockRadius + r) ** 2;
       for (const s of this.stones) {
@@ -470,6 +600,7 @@
       if (p.action.t >= 1) {
         t.state = p.team === 'doc' ? 'clean' : 'dirty';
         p.action = null;
+        p.stats.teeth++;
         this.emit({ type: 'tooth', tooth: t.id, state: t.state, id: p.id });
       }
     }
@@ -507,7 +638,12 @@
         });
         return;
       }
-      const a = this.aimAngle(p, W.range);
+      let a = this.aimAngle(p, W.range);
+      if (this.race) { // ayuda de puntería hacia la muela
+        const m = Math.atan2(C.RACE.y - p.y, C.RACE.x - p.x);
+        a = Math.abs(angDiff(p.a, m)) < C.AIM_ASSIST_DEG * 1.5 * Math.PI / 180 ? m : p.a;
+      }
+      if (W.spread) a += (Math.random() - 0.5) * W.spread * 2; // la metralleta dispersa un poco
       this.projectiles.push({
         id: this.uid++, type: w, owner: p.id, team: p.team,
         x: p.x + Math.cos(a) * 0.35, y: p.y + Math.sin(a) * 0.35, z: 0.5 + p.z,
@@ -528,6 +664,15 @@
             alive = false;
             this.impact(pr, pr.x - pr.vx * dt / 3, pr.y - pr.vy * dt / 3);
             break;
+          }
+          if (this.race) { // carrera: los disparos solo cuentan contra la muela
+            if ((pr.x - C.RACE.x) ** 2 + (pr.y - C.RACE.y) ** 2 < (C.RACE.radius + W.radius) ** 2) {
+              alive = false;
+              this.emit({ type: 'impact', weapon: pr.type, x: pr.x, y: pr.y, on: 'race', team: pr.team });
+              this.raceHit(pr);
+              if (!this.race) return; // la muela se rompió: fin de la partida
+            }
+            continue;
           }
           const fg = this.fungi.find((f) => f.hp > 0 && (pr.x - f.x) ** 2 + (pr.y - f.y) ** 2 < (C.FUNGUS.radius + W.radius) ** 2);
           if (fg) {
@@ -565,7 +710,7 @@
     hitPlayer(e, pr) {
       const shooter = this.players.get(pr.owner);
       // dentro del laberinto de la lengua la saliva lava la viscosidad (la carrera final es justa)
-      if (e.superT > 0) { this.emit({ type: 'blocked', id: e.id, weapon: pr.type, x: e.x, y: e.y }); return; } // estrella: inmortal
+      if (e.superT > 0 || e.spawnT > 0) { this.emit({ type: 'blocked', id: e.id, weapon: pr.type, x: e.x, y: e.y }); return; } // estrella / recién reaparecido: inmune
       const inMaze = this.mazeOpen && this.mazeCells.has(Math.floor(e.y) * MAP.W + Math.floor(e.x));
       if ((e.shieldT > 0 || inMaze) && pr.type === 'slime') { this.emit({ type: 'blocked', id: e.id, weapon: pr.type, x: e.x, y: e.y }); return; }
       this.emit({ type: 'impact', weapon: pr.type, x: e.x, y: e.y, on: e.id });
@@ -590,7 +735,7 @@
     }
 
     damage(e, amount, by, weapon) {
-      if (!e.alive || e.superT > 0) return;
+      if (!e.alive || e.superT > 0 || e.spawnT > 0) return;
       e.hp -= amount;
       e.flashT = 0.25;
       this.emit({ type: 'hit', id: e.id, by: by && by.id, weapon });
@@ -603,6 +748,8 @@
       e.dizzyT = 0; e.slowT = 0; e.superT = 0;
       const lost = e.streak || 0;
       e.streak = 0; // al morir se pierden las mejoras
+      e.stats.deaths++;
+      if (by && by.team && by.team !== e.team) by.stats.kills++;
       this.dropBomb(e);
       this.emit({ type: 'kill', id: e.id, by: by && by.id, weapon, x: e.x, y: e.y, lost });
       // Racha: más vida y disparo más rápido para quien elimina a un rival
@@ -621,7 +768,7 @@
       this.zones = this.zones.filter((z) => (z.t -= dt) > 0);
       for (const z of this.zones) {
         this.players.forEach((p) => {
-          if (p.team !== 'doc' || !p.alive || p.z > 0.1 || p.superT > 0) return;
+          if (p.team !== 'doc' || !p.alive || p.z > 0.1 || p.superT > 0 || p.spawnT > 0) return;
           if (Math.hypot(p.x - z.x, p.y - z.y) < z.r) {
             p.hp -= W.puddleDps * dt;
             p.flashT = Math.max(p.flashT, 0.1);
@@ -671,13 +818,15 @@
       b.state = 'ground'; b.holder = null; b.t = C.BOMB_LIFETIME; b.x = p.x; b.y = p.y; b.z = 0; b.type = 'neutral'; b.team = null;
     }
 
-    throwBomb(p) {
+    // ang/dist opcionales: lanzamiento automático apuntado a un rival (cae justo encima)
+    throwBomb(p, ang = p.a, dist) {
       const b = this.bombs.find((b) => b.id === p.bomb);
       p.bomb = null;
       if (!b) return;
       b.state = 'flying'; b.holder = null; b.owner = p.id;
       b.x = p.x; b.y = p.y; b.z = 0.8 + p.z;
-      b.vx = Math.cos(p.a) * C.BOMB_THROW_SPEED; b.vy = Math.sin(p.a) * C.BOMB_THROW_SPEED; b.vz = 3;
+      const sp = dist ? clamp(dist / 0.83, 2, C.BOMB_THROW_SPEED) : C.BOMB_THROW_SPEED; // ~0,83 s de vuelo
+      b.vx = Math.cos(ang) * sp; b.vy = Math.sin(ang) * sp; b.vz = 3;
       this.emit({ type: 'bombThrow', id: p.id, bombType: b.type });
     }
 
@@ -716,7 +865,7 @@
       const K = C.BOMB_KINDS[b.kind], ids = [];
       const thrower = this.players.get(b.owner);
       this.players.forEach((p) => {
-        if (!p.team || !p.alive || p.team === b.team || p.superT > 0) return;
+        if (!p.team || !p.alive || p.team === b.team || p.superT > 0 || p.spawnT > 0) return;
         const d = Math.hypot(p.x - b.x, p.y - b.y);
         if (d > K.radius || !lineOfSight(b.x, b.y, p.x, p.y)) return;
         ids.push(p.id);
@@ -774,7 +923,7 @@
         }
         // mordida al tocar a alguien
         this.players.forEach((p) => {
-          if (!p.team || !p.alive || p.superT > 0 || (f.cd[p.id] || 0) > 0) return;
+          if (!p.team || !p.alive || p.superT > 0 || p.spawnT > 0 || (f.cd[p.id] || 0) > 0) return;
           const d = Math.hypot(p.x - f.x, p.y - f.y);
           if (d > F.radius + C.PLAYER_RADIUS + 0.1) return;
           f.cd[p.id] = F.touchCooldown;
@@ -797,7 +946,7 @@
           this.players.forEach((p) => {
             if (!p.team || !p.alive) return;
             const d = Math.hypot(p.x - s.x, p.y - s.y);
-            if (d > T.radius || p.superT > 0) return;
+            if (d > T.radius || p.superT > 0 || p.spawnT > 0) return;
             hit.push(p.id);
             // empujar fuera de la piedra
             const min = T.rockRadius + C.PLAYER_RADIUS + 0.05;
@@ -918,7 +1067,9 @@
           actKind: (this.actionInfo(p) || {}).kind || null,
           bk: p.bomb ? (this.bombs.find((b) => b.id === p.bomb) || {}).kind || null : null,
           sup: +p.superT.toFixed(2), dizzy: +p.dizzyT.toFixed(1), slow: +p.slowT.toFixed(1), lv: p.streak, stunK: p.stunKind,
+          prot: +p.spawnT.toFixed(2), run: p.sprint,
         })),
+        race: this.race ? { doc: this.race.doc, bac: this.race.bac, cd: +Math.max(0, this.race.cd).toFixed(2) } : null,
         teeth: this.teeth.map((t) => ({ s: t.state === 'dirty' ? 1 : 0, c: +t.crownT.toFixed(1), p: work[t.id] ? +work[t.id].p.toFixed(3) : 0, w: work[t.id] ? work[t.id].team : null })),
         proj: this.projectiles.map((q) => ({ id: q.id, t: q.type, x: +q.x.toFixed(2), y: +q.y.toFixed(2), z: +q.z.toFixed(2) })),
         bombs: this.bombs.map((b) => ({ id: b.id, type: b.type, kind: b.kind, st: b.state, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2), t: +b.t.toFixed(1), holder: b.holder })),
@@ -935,7 +1086,8 @@
       const p = this.players.get(id);
       if (!p) return null;
       const clean = this.teeth.filter((t) => t.state === 'clean').length;
-      const base = { st: this.state, tl: Math.max(0, this.timeLeft), cd: Math.max(0, this.countdown), score: { clean, dirty: 16 - clean }, res: this.result };
+      const base = { st: this.state, tl: Math.max(0, this.timeLeft), cd: Math.max(0, this.countdown), score: { clean, dirty: 16 - clean }, res: this.result,
+        race: this.race ? { doc: this.race.doc, bac: this.race.bac, cd: +Math.max(0, this.race.cd).toFixed(1) } : null };
       if (!p.team) return base;
       const w = this.weaponOf(p), W = C.WEAPONS[w];
       const bomb = p.bomb ? this.bombs.find((b) => b.id === p.bomb) : null;
@@ -948,6 +1100,7 @@
         sup: +p.superT.toFixed(1), dizzy: +p.dizzyT.toFixed(1), slow: +p.slowT.toFixed(1), lv: p.streak, stunK: p.stunKind,
         shield: +p.shieldT.toFixed(1), shieldCd: +p.shieldCd.toFixed(1), stun: +p.stunT.toFixed(1), sticky: p.sticky, boost: +p.boostT.toFixed(1), crown: p.crown, contagion: +p.contagionT.toFixed(1),
         actKind: (this.actionInfo(p) || {}).kind || null,
+        prot: +p.spawnT.toFixed(1), run: p.sprint, weapons: this.race ? [C.RACE.weapon] : C.TEAM_WEAPONS[p.team],
       };
       return base;
     }
@@ -959,6 +1112,16 @@
       inp.jump = bot.jump; inp.weapon = bot.weapon; inp.throw = bot.throw; inp.shield = bot.shield;
       inp.fire = false; inp.act = false; inp.mx = 0; inp.my = 0; inp.tx = 0;
       if (!p.alive || p.slimedT > 0 || p.stunT > 0) return;
+
+      // Carrera de desempate: acercarse a la muela y disparar sin parar
+      if (this.race) {
+        const R = C.RACE, d = Math.hypot(R.x - p.x, R.y - p.y), to = Math.atan2(R.y - p.y, R.x - p.x);
+        const rel = angDiff(p.a, to);
+        inp.tx = clamp(rel * 2.5, -1, 1);
+        if (d > 3.5 + bot.jitter * 0.3) { inp.my = -Math.cos(rel); inp.mx = Math.sin(rel); }
+        inp.fire = Math.abs(rel) < 0.15 && Math.random() < 0.8;
+        return;
+      }
 
       bot.think -= dt;
       // Enemigo visible más cercano

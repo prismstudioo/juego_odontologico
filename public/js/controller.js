@@ -14,7 +14,7 @@
 
   if (typeof io === 'undefined') { $('joinErr').textContent = 'No hay conexión con el servidor.'; return; }
   const socket = io();
-  let myId = null, lobby = null, lastState = null;
+  let myId = null, lobby = null, lastState = null, shownRes = null;
   const store = { get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } } };
   $('nameInput').value = store.get('moc_name') || '';
 
@@ -52,8 +52,11 @@
   $('pickDoc').onclick = () => socket.emit('player:team', 'doc');
   $('pickBac').onclick = () => socket.emit('player:team', 'bac');
   $('changeTeamBtn').onclick = () => { socket.emit('player:leave'); myId = null; store.set('moc_token', ''); join(); };
-  $('startBtn').onclick = () => socket.emit('start');
-  $('againBtn').onclick = () => socket.emit('again');
+  // Elegir personaje (skin) dentro del equipo
+  $('skinPick').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-skin]');
+    if (b) socket.emit('player:skin', b.dataset.skin);
+  });
 
   // Pantalla completa + pantalla siempre encendida al empezar a jugar
   $('play').addEventListener('pointerdown', () => {
@@ -132,15 +135,29 @@
         const img = me.team === 'doc' ? `doc_${me.skin}_armed` : `bac_${me.skin}`;
         $('meCard').innerHTML = `<img src="assets/${img}.png" style="height:90px;image-rendering:pixelated" alt=""><br><span class="t-${me.team}">${esc(me.name)} · ${me.team === 'doc' ? '🦷 ODONTÓLOGO' : '🦠 BACTERIA'}</span>`;
         $('waitList').innerHTML = lobby.players.filter((p) => p.team).map((p) => `<div class="t-${p.team}">${p.team === 'doc' ? '🦷' : '🦠'} ${esc(p.name)}</div>`).join('');
-        $('startBtn').classList.toggle('hidden', !lobby.canStart);
-        $('waitMsg').textContent = lobby.canStart ? '¡Listos!' : `Esperando jugadores… (${lobby.players.filter((p) => p.team).length}/${lobby.mode})`;
+        const skins = lobby.skins || ['alan', 'karina'];
+        $('skinPick').innerHTML = skins.map((s) => {
+          const im = me.team === 'doc' ? `doc_${s}_armed` : `bac_${s}`;
+          return `<button class="skin-btn t-${me.team}${s === me.skin ? ' sel' : ''}" data-skin="${s}"><img src="assets/${im}.png" alt="">${s.toUpperCase()}</button>`;
+        }).join('');
+        $('waitMsg').textContent = lobby.canStart ? '¡Listos! La partida se inicia desde la pantalla principal'
+          : `Esperando jugadores… (${lobby.players.filter((p) => p.team).length}/${lobby.mode})`;
       }
     } else if (state === 'results') {
       show('results');
       const r = lastState && lastState.res;
-      if (r) {
-        const mine = me.team, won = r.winner === mine;
-        $('resText').innerHTML = `TIEMPO TERMINADO<br><br><span class="t-doc">🦷 LIMPIOS: ${r.clean}</span><br><span class="t-bac">🦠 CONTAMINADOS: ${r.dirty}</span><br><br>${r.winner === 'tie' ? '🤝 EMPATE' : won ? '🏆 ¡GANASTE!' : '💀 PERDISTE'}`;
+      if (r && JSON.stringify(r) !== shownRes) {
+        shownRes = JSON.stringify(r);
+        const won = r.winner === me.team, mine = (r.players || []).find((p) => p.id === myId) || {};
+        const img = (t, s) => (t === 'doc' ? `doc_${s}_armed` : `bac_${s}`);
+        document.body.dataset.win = r.winner;
+        $('resText').innerHTML = `
+          <div class="pr-banner ${won ? 'won' : 'lost'} t-${r.winner}">${won ? '🏆 ¡GANASTE!' : '💀 PERDISTE'}</div>
+          <div class="pr-team t-${r.winner}"><img src="assets/${img(r.winner, 'alan')}.png" alt=""><span>${r.winner === 'doc' ? '🦷 GANAN LOS ODONTÓLOGOS' : '🦠 GANAN LAS BACTERIAS'}</span><img src="assets/${img(r.winner, 'karina')}.png" alt=""></div>
+          <div class="pr-score"><span class="t-doc">🦷 ${r.clean}</span> · <span class="t-bac">${r.dirty} 🦠</span>${r.race ? `<small>desempate de la muela: ${r.race.doc} vs ${r.race.bac}</small>` : ''}</div>
+          <div class="pr-me">TU PARTIDA: 💀 ${mine.kills || 0} eliminaciones · 🦷 ${mine.teeth || 0} dientes${r.race ? ` · 🎯 ${mine.race || 0} a la muela` : ''}</div>
+          ${r.mvp === myId ? '<div class="pr-mvp">⭐ ¡FUISTE EL MVP! ⭐</div>' : ''}
+          <div class="pr-hint">Espera: la pantalla principal decide si juegan otra vez</div>`;
       }
     } else if (me.team) show('play');
   }
