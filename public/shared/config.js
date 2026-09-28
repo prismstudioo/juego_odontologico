@@ -89,7 +89,7 @@
     TONSIL: { firstAt: 15, every: 12, warn: 1.6, radius: 1.3, stun: 2.5, damage: 15, rockLife: 8, rockRadius: 0.45 },
     // Pareja especial: corona (odontólogos) y cepa de caries (bacterias) aparecen a la vez
     CROWN: { firstAt: 45, every: 45, life: 18, placeTime: 2, duration: 40, maxActive: 3 },
-    CONTAGION: { duration: 16, every: 4, maxTeeth: 4 },
+    CONTAGION: { duration: 16, every: 4, maxTeeth: 2 }, // antes 4: daba ventaja a las bacterias (la corona solo protege)
     // Final: la lengua se abre como laberinto; quien agarre el objeto legendario decide todos los dientes
     // (odontólogo = enjuague bucal: todos limpios · bacteria = coca: todos sucios, menos los que tienen corona)
     LEGEND: { warnAt: 20, openAt: 7, radius: 0.8, teeth: 4 }, // cambia 4 dientes (antes todos: decidía la partida sola)

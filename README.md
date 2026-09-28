@@ -56,7 +56,7 @@ Modo prueba con teclado: WASD mover, Shift+W correr, mouse / ← → girar, clic
 - 🪨 **Tonsilolitos**: caen del paladar con una sombra roja de aviso. Noquean 2,5 s y quedan como roca (cobertura) unos segundos.
 - 🧴 **Flúor** (odontólogos) / 🍬 **Azúcar** (bacterias): aparecen juntos. Más velocidad y limpian/ensucian más rápido durante 8 s.
 - 👑 **Corona** (odontólogos): recógela y mantén LIMPIAR junto a un diente limpio → queda protegido 40 s (máx. 3 a la vez).
-- 🧫 **Cepa de caries** (bacterias): aparece junto con la corona. Contagia 1 diente vecino cada 4 s (máx. 4), excepto los que tienen corona. Se detiene si eliminan a quien la lleva.
+- 🧫 **Cepa de caries** (bacterias): aparece junto con la corona. Contagia 1 diente vecino cada 4 s (máx. 2), excepto los que tienen corona. Se detiene si eliminan a quien la lleva.
 - 💧 La saliva del suelo te acelera; 🕳️ las caries del suelo te frenan.
 
 ## Configuración
