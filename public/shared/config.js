@@ -24,7 +24,7 @@
     BOMB_LIFETIME: 20,           // segundos en el suelo para capturarla
     BOMB_HOLD_TIME: 20,          // segundos para lanzarla tras recogerla (si no, se pierde)
     BOMB_TEETH_AFFECTED: 7,
-    BOMBS_PER_MATCH: 5,          // una de cada tipo (ver BOMB_KINDS), en orden aleatorio
+    TEETH_BOMBS_PER_MATCH: 5,    // bombas dentales (cambian 7 dientes) por partida; además sale 1 de cada bomba de efecto
     BOMB_SPAWN_WINDOW: [15, 160], // segundos transcurridos en los que pueden aparecer bombas
     // Tipos de bomba: 'teeth' cambia dientes según el equipo; las demás afectan a los enemigos de quien la lanza
     BOMB_KINDS: {

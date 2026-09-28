@@ -166,9 +166,9 @@
       this.race = null;
       this.uid = 1;
       // 2 bombas por equipo, en momentos aleatorios repartidos por la partida
-      // bombas de distintos tipos (una de cada una, en orden aleatorio)
-      const kinds = shuffle(Object.keys(C.BOMB_KINDS));
-      const nb = C.BOMBS_PER_MATCH, [w0, w1] = C.BOMB_SPAWN_WINDOW, seg = (w1 - w0) / nb;
+      // 5 bombas dentales (7 dientes) + 1 de cada bomba de efecto, en orden aleatorio
+      const kinds = shuffle([...Array(C.TEETH_BOMBS_PER_MATCH).fill('teeth'), ...Object.keys(C.BOMB_KINDS).filter((k) => k !== 'teeth')]);
+      const nb = kinds.length, [w0, w1] = C.BOMB_SPAWN_WINDOW, seg = (w1 - w0) / nb;
       this.bombSchedule = Array.from({ length: nb }, (_, i) => ({ kind: kinds[i % kinds.length], at: w0 + seg * i + Math.random() * seg * 0.7 }));
       // estrellas (diente de oro) repartidas por la partida
       const S = C.SUPER, sseg = (S.window[1] - S.window[0]) / S.count;
